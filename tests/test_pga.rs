@@ -116,3 +116,56 @@ fn wedge_2d_determinant_equality() {
     // First component: 2*4 - 3*1 = 5
     assert!((w[0] - 5.0).abs() < 1e-4);
 }
+
+#[test]
+fn agile_eye_pan_tilt_demo() {
+    // Specific mechanism: 2-axis rotation using Motor sandwich + geometric intersection
+    let rotation_pan = geometra_pg::Motor {
+        dir: geometra_pg::F32x4::from_array([1.0, 0.0, 0.0, 0.3]),
+        mom: geometra_pg::F32x4::from_array([0.0, 0.0, 0.0, 0.0]),
+    };
+    let rotation_tilt = geometra_pg::Motor {
+        dir: geometra_pg::F32x4::from_array([0.707, 0.0, 0.0, 0.707]),
+        mom: geometra_pg::F32x4::from_array([0.0, 1.0, 0.0, 0.0]),
+    };
+    // Apply sequential rotation to a point representing the eye center
+    let eye_center = geometra_pg::F32x4::from_array([10.0, 5.0, 20.0, 1.0]);
+    let rotated_pan = geometra_pg::sandwich(&rotation_pan, eye_center);
+    let rotated_tilt = geometra_pg::sandwich(&rotation_tilt, rotated_pan);
+    assert!(rotated_tilt.to_array()[0].is_finite());
+    assert!(rotated_tilt.to_array()[3].is_finite());
+    // Geometric intersection: plane projection onto rotated point sphere
+    let plane_target = geometra_pg::F32x4::from_array([0.0, 1.0, 0.0, 0.0]);
+    let sphere_center = rotated_tilt;
+    let intersect_result = geometra_pg::sphere_intersect_plane(sphere_center, 1.0, plane_target);
+    assert!(intersect_result.is_finite());
+}
+
+#[test]
+fn agile_eye_spherical_ik_demo() {
+    // Demonstration: spherical parallel mechanism ("agile eye") using existing geometric primitives
+    // Sequential 3-DoF rotation via motor_chain + rotation application via sandwich
+    // Geometric constraint via sphere_intersect (joint limit representation)
+    let pan = geometra_pg::Motor {
+        dir: geometra_pg::F32x4::from_array([1.0, 0.0, 0.0, 0.0]),
+        mom: geometra_pg::F32x4::from_array([0.0, 1.0, 0.0, 0.0]),
+    };
+    let tilt = geometra_pg::Motor {
+        dir: geometra_pg::F32x4::from_array([0.707, 0.0, 0.0, 0.707]),
+        mom: geometra_pg::F32x4::from_array([0.0, 0.5, 0.0, 0.0]),
+    };
+    let tilt_ref = geometra_pg::Motor {
+        dir: geometra_pg::F32x4::from_array([0.707, 0.0, 0.0, 0.707]),
+        mom: geometra_pg::F32x4::from_array([0.0, 0.5, 0.0, 0.0]),
+    };
+    let chain = geometra_pg::motor_chain(&vec![pan.clone(), tilt_ref.clone()]);
+    assert!(chain.dir.to_array()[0].is_finite());
+    assert!(chain.mom.to_array()[0].is_finite());
+    // Apply rotation to eye center
+    let eye = geometra_pg::F32x4::from_array([0.0, 0.0, 10.0, 1.0]);
+    let rotated = geometra_pg::sandwich(&tilt_ref, eye);
+    assert!(rotated.to_array()[0].is_finite());
+    // Geometric constraint: sphere-sphere intersection for joint limit
+    let limit = geometra_pg::sphere_intersect_sphere(eye, 2.0, rotated, 1.0);
+    assert!(limit.is_finite());
+}
