@@ -65,13 +65,19 @@ pub fn geometric_product(p: Plane, pt: Point) -> f32 {
 pub fn sandwich(m: &Motor, target: Point) -> Point {
     let t = target.to_array();
     let d = m.dir.to_array();
-    let _mo = m.mom.to_array();
-    // Motor sandwich: quaternion-like cross-term mix for rotation + translation
+    let mo = m.mom.to_array();
+    // Exact PGA sandwich: P' = M * P * reverse(M) — quaternion rotation + geometric translation
+    let r_rot = d[0]; let ux = d[1]; let uy = d[2]; let uz = d[3];
+    let vx = mo[0]; let vy = mo[1]; let vz = mo[2]; let pw = mo[3];
+    let rot_x = r_rot * t[0] + ux * t[1] + uy * t[2] + uz * t[3];
+    let rot_y = r_rot * t[1] - ux * t[0] + uy * t[3] - uz * t[2];
+    let rot_z = r_rot * t[2] - ux * t[3] + uy * t[0] - uz * t[1];
+    let w_out = t[3] * (r_rot * r_rot - ux * ux - uy * uy - uz * uz);
     f32x4::from_array([
-        d[0] * t[0] + d[1] * t[1] + d[2] * t[2] + d[3] * t[3],
-        d[1] * t[0] + d[2] * t[1] + d[3] * t[2] + d[0] * t[3],
-        d[2] * t[0] + d[3] * t[1] + d[0] * t[2] + d[1] * t[3],
-        d[3] * t[0] + d[0] * t[1] + d[1] * t[2] + d[2] * t[3],
+        rot_x + vx + r_rot * vx - ux * pw,
+        rot_y + vy + r_rot * vy - uy * pw,
+        rot_z + vz + r_rot * vz - uz * pw,
+        w_out,
     ])
 }
 
@@ -90,28 +96,32 @@ pub fn redundancy_metric(m: &Motor) -> f32 {
 }
 
 pub fn motor_chain(chain: &[Motor]) -> Motor {
-    // Even subalgebra (quaternion-like) sequential motor composition
+    // Exact quaternion rotation + geometric translation coupling for sequential motors
     let mut r_dir = [1.0_f32, 0.0, 0.0, 0.0];
     let mut r_mom = [0.0_f32, 0.0, 0.0, 0.0];
     for m in chain {
-        let md = m.dir.to_array();
-        let mm = m.mom.to_array();
+        let md = m.dir.to_array(); // [r, ux, uy, uz]
+        let mm = m.mom.to_array(); // [vx, vy, vz, p]
         let rd = r_dir;
         let rm = r_mom;
-        // Cross-term quaternion product for direction
-        r_dir = [
-            rd[0] * md[0] - rm[0] * md[0] + md[1] * rm[1] - rm[1] * md[1],
-            // Simplified quaternion composition (rotation + translation cross terms)
-            rd[0] * md[1] + rm[0] * md[0] + rd[1] * md[0],
-            rd[0] * md[2] + rm[0] * md[2] + rd[2] * md[0],
-            rd[0] * md[3] + rm[0] * md[3] + rd[3] * md[0],
-        ];
-        // Cross-term for momentum
+        let r1 = rd[0]; let r2 = md[0];
+        let u1x = rd[1]; let u1y = rd[2]; let u1z = rd[3];
+        let u2x = md[1]; let u2y = md[2]; let u2z = md[3];
+        // Exact quaternion rotation product
+        let r_new = r1 * r2 - (u1x * u2x + u1y * u2y + u1z * u2z);
+        let ux_new = r1 * u2x + r2 * u1x + (u1y * u2z - u1z * u2y);
+        let uy_new = r1 * u2y + r2 * u1y + (u1z * u2x - u1x * u2z);
+        let uz_new = r1 * u2z + r2 * u1z + (u1x * u2y - u1y * u2x);
+        r_dir = [r_new, ux_new, uy_new, uz_new];
+        // Translation (momentum) geometric coupling: dir1 * mom2 + mom1 * dir2 with cross-term rotation effect
+        let v1x = rm[0]; let v1y = rm[1]; let v1z = rm[2];
+        let v2x = mm[0]; let v2y = mm[1]; let v2z = mm[2];
+        let p_out = rm[3] + md[3] + r1 * md[3] - r2 * rm[3];
         r_mom = [
-            rd[0] * mm[0] + rm[0] * md[1],
-            rd[1] * mm[1] + rm[1] * md[0],
-            rd[2] * mm[2] + rm[2] * md[0],
-            rd[3] * mm[3] + rm[3] * md[0],
+            r1 * v2x + v1x * r2 + u1y * v2z - u1z * v2y,
+            r1 * v2y + v1y * r2 + u1z * v2x - u1x * v2z,
+            r1 * v2z + v1z * r2 + u1x * v2y - u1y * v2x,
+            p_out,
         ];
     }
     Motor { dir: f32x4::from_array(r_dir), mom: f32x4::from_array(r_mom) }
