@@ -147,3 +147,5 @@ pub fn sphere_intersect_sphere(c1: Point, r1: f32, c2: Point, r2: f32) -> f32 {
     let diff_r_sq = r1 * r2;
     sum_r_sq - dist_sq + diff_r_sq
 }
+pub mod parser;
+pub use parser::emit::*;
