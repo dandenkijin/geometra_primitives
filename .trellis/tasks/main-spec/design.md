@@ -8,3 +8,4 @@
 - Language: Rust (native SIMD via std::simd / core::simd, or scalar FMA unroll).
 - Structure: dense arrays; branchless loops; singularity handled by metric zero.
 - Baseline reference: Python `clifford` (structure/reference only, not runtime dependency).
+Reference: Dorst et al., arXiv:2311.04744 (Projective GA for Equivariant Transformers) — see .trellis/tasks/main-spec/paper-reference.md

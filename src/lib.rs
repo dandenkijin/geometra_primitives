@@ -1,4 +1,5 @@
 // Projective Geometric Algebra R_3_0_1 — branchless, dense f32x4 SIMD
+// Aligned with arXiv:2311.04744 (Projective GA for Equivariant Transformers).
 // No conditional branches in geometric product / intersection paths.
 // Singularity (parallel, infinity, zero magnitude) drops via metric signature (coeff -> 0).
 
