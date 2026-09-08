@@ -1,0 +1,6 @@
+/target
+*.rmeta
+*.rlib
+*.o
+*.lock
+geometra_primitives/
