@@ -65,7 +65,7 @@ pub fn geometric_product(p: Plane, pt: Point) -> f32 {
 pub fn sandwich(m: &Motor, target: Point) -> Point {
     let t = target.to_array();
     let d = m.dir.to_array();
-    let mo = m.mom.to_array();
+    let _mo = m.mom.to_array();
     // Motor sandwich: quaternion-like cross-term mix for rotation + translation
     f32x4::from_array([
         d[0] * t[0] + d[1] * t[1] + d[2] * t[2] + d[3] * t[3],
