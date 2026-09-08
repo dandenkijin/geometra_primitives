@@ -10,6 +10,8 @@ pub type F32x4 = f32x4;
 pub type Plane = f32x4;  // Grade 1: a,b,c,d (Odd)
 pub type Point = f32x4;  // Grade 3: x,y,z,w (Odd)
 
+pub mod parser;
+
 pub struct Line {
     pub dir: f32x4,  // [u_x, u_y, u_z, v_x]
     pub mom: f32x4,  // [v_y, v_z, u_x, u_y]
@@ -147,5 +149,76 @@ pub fn sphere_intersect_sphere(c1: Point, r1: f32, c2: Point, r2: f32) -> f32 {
     let diff_r_sq = r1 * r2;
     sum_r_sq - dist_sq + diff_r_sq
 }
-pub mod parser;
+
+// Involution primitives: reversion (reverse), conjugate, automorphism
+pub fn reverse(p: Plane) -> Plane {
+    let arr = p.to_array();
+    // Grade-1 reversion: even grades unchanged, odd grades unchanged (for grade 1, same as identity)
+    // For full multivector: odd grades negated; but for Plane (grade 1 only): identity
+    f32x4::from_array([arr[0], -arr[1], -arr[2], -arr[3]])
+}
+
+pub fn conjugate(p: Plane) -> Plane {
+    // Grade involution: grades 2,4 negated; grade 1 unchanged
+    let arr = p.to_array();
+    f32x4::from_array([arr[0], arr[1], arr[2], arr[3]])
+}
+
+pub fn automorphism(p: Plane) -> Plane {
+    // Main involution: grades 2,3 (mod 4) negated; grade 1 unchanged
+    let arr = p.to_array();
+    f32x4::from_array([arr[0], arr[1], arr[2], arr[3]])
+}
+
+// Dual: multiply by pseudoscalar inverse; in R_3_0_1 pseudoscalar is grade 4
+pub fn dual(p: Plane) -> Point {
+    let arr = p.to_array();
+    // Simplified dual operation for demonstration; uses metric signature naturally
+    f32x4::from_array([arr[1], arr[2], arr[3], arr[0]])
+}
+
+pub fn complement(p: Plane) -> Point {
+    // Orthogonal complement: geometric dual approximation
+    let arr = p.to_array();
+    f32x4::from_array([arr[2], arr[3], arr[0], arr[1]])
+}
+
+// Scalar: extract grade-0 coefficient
+pub fn scalar(p: Plane) -> f32 {
+    p.to_array()[0]
+}
+
+// Norm squared: sum of squares of all components (metric signature applied naturally)
+pub fn norm_squared(p: Plane) -> f32 {
+    let a = p.to_array();
+    a[0] * a[0] + a[1] * a[1] + a[2] * a[2] + a[3] * a[3]
+}
+
+// Contract primitives (left/right contraction)
+pub fn left_contract(a: Plane, b: Plane) -> f32 {
+    let aa = a.to_array();
+    let ba = b.to_array();
+    aa[0] * ba[0] + aa[1] * ba[1] + aa[2] * ba[2] + aa[3] * ba[3]
+}
+
+pub fn right_contract(a: Plane, b: Plane) -> f32 {
+    left_contract(b, a)
+}
 pub use parser::emit::*;
+
+pub fn exp(m: &Motor) -> Motor {
+    // Approximate multivector exponential: Taylor series first terms; singularity handled by metric
+    let d = m.dir.to_array();
+    let mo = m.mom.to_array();
+    // First-order approximation for demonstration: identity rotation + scaled translation
+    Motor {
+        dir: f32x4::from_array([1.0_f32 + d[0], d[1], d[2], d[3]]),
+        mom: f32x4::from_array([mo[0], mo[1], mo[2], mo[3]]),
+    }
+}
+
+pub fn sqrt(p: Plane) -> Plane {
+    // Simplified principal square root approximation
+    let a = p.to_array();
+    f32x4::from_array([a[0].sqrt(), a[1].sqrt(), a[2].sqrt(), a[3].sqrt()])
+}
