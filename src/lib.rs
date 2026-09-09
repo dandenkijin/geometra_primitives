@@ -75,7 +75,7 @@ pub fn sandwich(m: &Motor, target: Point) -> Point {
     let rot_x = r_rot * t[0] + ux * t[1] + uy * t[2] + uz * t[3];
     let rot_y = r_rot * t[1] - ux * t[0] + uy * t[3] - uz * t[2];
     let rot_z = r_rot * t[2] - ux * t[3] + uy * t[0] - uz * t[1];
-    let w_out = t[3] * (r_rot * r_rot - ux * ux - uy * uy - uz * uz);
+    let w_out = t[3] * (r_rot * r_rot + ux * ux + uy * uy + uz * uz);
     f32x4::from_array([
         rot_x + vx + r_rot * vx - ux * pw,
         rot_y + vy + r_rot * vy - uy * pw,
@@ -119,7 +119,9 @@ pub fn motor_chain(chain: &[Motor]) -> Motor {
         // Translation (momentum) geometric coupling: dir1 * mom2 + mom1 * dir2 with cross-term rotation effect
         let v1x = rm[0]; let v1y = rm[1]; let v1z = rm[2];
         let v2x = mm[0]; let v2y = mm[1]; let v2z = mm[2];
-        let p_out = rm[3] + md[3] + r1 * md[3] - r2 * rm[3];
+        let p1 = rm[3]; let p2 = mm[3];
+        // Full dual-quaternion translation: geometric coupling including pseudoscalar tracking
+        let p_out = p1 + p2 + r1 * p2 - r2 * p1;
         r_mom = [
             r1 * v2x + v1x * r2 + u1y * v2z - u1z * v2y,
             r1 * v2y + v1y * r2 + u1z * v2x - u1x * v2z,
