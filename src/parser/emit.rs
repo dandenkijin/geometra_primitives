@@ -31,10 +31,10 @@ pub fn emit_wgsl(node: &PgaAst) -> String {
             // Rotor primitive emission: grade-2 pure rotation (no translation)
             "fn rotor(dir_u: vec4<f32>, angle: f32) -> Motor {\n    let r_new = cos(angle);\n    let ux_new = dir_u.y * sin(angle);\n    let uy_new = dir_u.z * sin(angle);\n    let uz_new = dir_u.w * sin(angle);\n    return Motor(vec4<f32>(r_new, ux_new, uy_new, uz_new), vec4<f32>(0.0, 0.0, 0.0, 0.0));\n}".to_string()
         }
-        PgaAst::Projection(_) => {
+        PgaAst::Projection(_, _) => {
             "fn projection(a: vec4<f32>, b: vec4<f32>) -> f32 {\n    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;\n}".to_string()
         }
-        PgaAst::Rejection(_) => {
+        PgaAst::Rejection(_, _) => {
             // Rejection (outer product) emission: exact regressive product mapping
             "fn rejection(a: vec4<f32>, b: vec4<f32>) -> [f32; 6] {\n    return [f32; 6](a.y * b.w - a.z * b.z, a.x * b.w - a.w * b.z, a.x * b.y - a.z * b.y, a.z * b.w - a.w * b.z, a.y * b.z - a.w * b.y, a.x * b.z - a.y * b.x);\n}".to_string()
         }
