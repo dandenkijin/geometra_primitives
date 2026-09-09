@@ -1,4 +1,5 @@
 use geometra_pg::*;
+use geometra_pg::parser::ast::PgaAst;
 
 #[test]
 fn full_pipeline_pga_to_wgsl() {
