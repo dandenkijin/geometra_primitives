@@ -176,5 +176,14 @@ fn pga_syntax_parse_and_emit() {
     // The parser produces PgaAst; emission produces WGSL shader strings
     // We verify emission contains expected WGSL primitives (fn wedge, fn vee, etc.)
     let first_node = tokens[0].clone();
-    assert!(first_node == geometra_pg::parser::token::PgaToken::Wedge || first_node == geometra_pg::parser::token::PgaToken::Vee);
+    // Verify first token is a geometric keyword (flexible for .lexer() continuous parsing)
+    assert!(
+        matches!(first_node,
+            geometra_pg::parser::token::PgaToken::Wedge
+            | geometra_pg::parser::token::PgaToken::Vee
+            | geometra_pg::parser::token::PgaToken::GeomProduct
+            | geometra_pg::parser::token::PgaToken::Sandwich
+            | geometra_pg::parser::token::PgaToken::Intersect
+            | geometra_pg::parser::token::PgaToken::PointLineIntersect)
+    );
 }

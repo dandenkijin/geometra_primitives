@@ -1,5 +1,7 @@
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum PgaToken {
+    // Keywords matching geometric primitives
     #[token("plane")]
     Plane,
     #[token("point")]
@@ -10,50 +12,49 @@ pub enum PgaToken {
     Motor,
     #[token("let")]
     Let,
-    #[token("wedge")]
+
+    // Operators for geometric algebra products
+    #[token("^")]
     Wedge,
-    #[token("vee", priority = 2)]
+    #[token("v", priority = 2)]
     Vee,
-    #[token("geometric_product")]
-    GeomProduct,
-    #[token("sandwich")]
-    Sandwich,
-    #[token("intersect_plane_point")]
-    Intersect,
-    #[token("point_line_intersect")]
-    PointLineIntersect,
-    #[token("motor_chain")]
-    MotorChain,
-    #[token("redundancy_metric")]
-    RedundancyMetric,
-    #[token("sphere_intersect_plane")]
-    SphereIntersectPlane,
-    #[token("sphere_intersect_sphere")]
-    SphereIntersectSphere,
     #[token("*")]
     Mul,
     #[token("~")]
     Inverse,
-    #[token("(")]
-    LParen,
-    #[token(")")]
-    RParen,
-    #[token(",")]
-    Comma,
-    #[token("=>")]
-    Arrow,
-    #[token("==")]
-    Eq,
+
+    // Identifiers and numeric literals
+    #[regex("[a-zA-Z_][a-zA-Z0-9_]*", priority = 1)]
+    Ident,
+
+    #[regex(r"-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")]
+    FloatLiteral,
+
+    // Structural punctuation
     #[token("=")]
     Assign,
     #[token(";")]
     SemiColon,
-    #[token("eof")]
-    Eof,
-    #[regex("[a-zA-Z_][a-zA-Z0-9_]*", priority = 1)]
-    Ident,
-    #[regex(r"-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")]
-    FloatLiteral,
+
+    // Expanded geometric primitive syntax keywords
+    GeomProduct,
+    Sandwich,
+    SandwichPoint,
+    SandwichPlane,
+    Intersect,
+    PointLineIntersect,
+    MotorChain,
+    RedundancyMetric,
+    SphereIntersectPlane,
+    SphereIntersectSphere,
+    // Structural punctuation for syntax precision
+    Comma,
+    LParen,
+    RParen,
+    Arrow,
+    Eq,
+
+    // Skip whitespace
     #[regex(r"[ \t\n\f\r]+", logos::skip)]
     Skip,
 }

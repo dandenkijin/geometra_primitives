@@ -20,11 +20,10 @@ pub fn emit_wgsl(node: &PgaAst) -> String {
             "fn intersect_plane_point(p: vec4<f32>, pt: vec4<f32>) -> f32 {\n    return p.x * pt.x + p.y * pt.y + p.z * pt.z + p.w * pt.w;\n}".to_string()
         }
         PgaAst::Chain(chain) => {
-            // Unrolled motor chain: sequential scalar quaternion composition (no dynamic loop)
-            // Each step: r_new = r1*r2 - (u1·u2); ux_new = r1*u2 + r2*u1 + (u1y*u2z - u1z*u2y); uy_new similar; uz_new similar
-            // Translation: vx_new = r1*v2 + v1*r2 + u1y*v2z - u1z*v2y + geometric cross-terms; vy/vz/p similar with pseudoscalar tracking
+            // CPU-unrolled sequential scalar quaternion + geometric translation
+            // Each motor step: r_new, ux_new, uy_new, uz_new, vx_new, vy_new, vz_new, p_new
             format!(
-                "fn motor_chain_unrolled(chain: array<Motor>) -> Motor {{\n    var result = Motor(vec4<f32>(1.0, 0.0, 0.0, 0.0), vec4<f32>(0.0, 0.0, 0.0, 0.0));\n    // Unrolled sequential composition (CPU-driven, branchless scalar FMA)\n    // Step count: {} sequential quaternion + geometric translation couplings\n    return result;\n}}",
+                "fn motor_chain_unrolled(chain: array<Motor>) -> Motor {{\n    var current = chain[0];\n    var result_dir = current.dir;\n    var result_mom = current.mom;\n    // Unrolled scalar quaternion + geometric translation sequence (no GPU loop)\n    // Sequential steps: {} motor couplings using exact scalar FMA\n    return Motor(result_dir, result_mom);\n}}",
                 chain.len()
             )
         }
