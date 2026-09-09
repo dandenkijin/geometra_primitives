@@ -17,6 +17,7 @@ pub struct Line {
     pub mom: f32x4,  // [v_y, v_z, u_x, u_y]
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Motor {
     pub dir: f32x4,
     pub mom: f32x4,
