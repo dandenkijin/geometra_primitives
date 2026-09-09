@@ -100,7 +100,7 @@ fn quaternion_rotation_norm_preserved() {
         mom: F32x4::from_array([0.0, 0.0, 0.0, 0.0]),
     };
     let pt = F32x4::from_array([0.0, 1.0, 0.0, 1.0]);
-    let transformed = sandwich(&rot, pt);
+    let _transformed = sandwich(&rot, pt);
     // Rotation magnitude preserved (approx)
     let d_arr = rot.clone().dir.to_array();
     let norm_sq = d_arr[0] * d_arr[0] + d_arr[1] * d_arr[1]

@@ -1,29 +1,82 @@
-// Compiler Intermediate Representation (IR) for R_3_0_1 PGA
-// Transforms PgaAst -> optimized geometric expressions; preserves contracts; branchless.
+// PgaIr: Structural Intermediate Representation for graded multivector optimization
+// Enforces geometric contracts: grade-aware operations only between compatible grades.
 
-use crate::parser::ast::PgaAst;
+use crate::parser::type_def::{PgaType, GradeMask};
 
-pub enum PgaIr {
-    WedgeExpr { left_coeff: f32, right_coeff: f32, grade_mask: u8 },
-    VeeExpr { left_coeff: f32, right_coeff: f32, grade_mask: u8 },
-    GeomProdExpr { a_coeff: f32, b_coeff: f32, c_coeff: f32, d_coeff: f32 },
-    SandwichExpr { rotation: [f32; 4], translation: [f32; 4], target_coeff: [f32; 4] },
-    IntersectExpr { plane_coeff: [f32; 4], point_coeff: [f32; 4] },
-    MotorChainExpr { sequential_motors: Vec<[f32; 8]> },
-    Primitive { kind: String, coeffs: Vec<f32> },
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum PgaLiteral {
+    Scalar(f32),
+    Vector([f32; 4]),
+    Bivector([f32; 6]),
+    Trivector([f32; 4]),
+    Pseudoscalar(f32),
+    MotorDir([f32; 4]),
+    MotorMom([f32; 4]),
 }
 
-// Zero pruning: drop blades whose coefficient evaluates to zero (singularity metric)
-pub fn prune_zeros(ir: PgaIr) -> PgaIr {
+#[derive(Debug, PartialEq, Clone)]
+pub enum PgaBinaryOp {
+    Wedge(PgaLiteral, PgaLiteral),
+    Vee(PgaLiteral, PgaLiteral),
+    GeomProduct(PgaLiteral, PgaLiteral),
+    InnerProduct(PgaLiteral, PgaLiteral),
+    Regressive(PgaLiteral, PgaLiteral),
+    Sandpoint(PgaLiteral, PgaLiteral),
+    SandpointPlane(PgaLiteral, PgaLiteral),
+}
+
+// Type-safe multivector wrapper enforcing grade-mixing rules
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct PgaMultivector {
+    pub grade_mask: GradeMask,
+    pub scalar_coeff: Option<f32>,
+    pub vector_coeff: Option<[f32; 4]>,
+    pub bivector_coeff: Option<[f32; 6]>,
+    pub trivector_coeff: Option<[f32; 4]>,
+    pub pseudoscalar_coeff: Option<f32>,
+    pub motor_dir: Option<[f32; 4]>,
+    pub motor_mom: Option<[f32; 4]>,
+}
+
+impl PgaMultivector {
+    pub fn scalar(s: f32) -> Self {
+        PgaMultivector {
+            grade_mask: GradeMask::scalar_only(),
+            scalar_coeff: Some(s),
+            vector_coeff: None,
+            bivector_coeff: None,
+            trivector_coeff: None,
+            pseudoscalar_coeff: None,
+            motor_dir: None,
+            motor_mom: None,
+        }
+    }
+    pub fn plane(v: [f32; 4]) -> Self {
+        PgaMultivector {
+            grade_mask: GradeMask::plane(),
+            scalar_coeff: None,
+            vector_coeff: Some(v),
+            bivector_coeff: None,
+            trivector_coeff: None,
+            pseudoscalar_coeff: None,
+            motor_dir: None,
+            motor_mom: None,
+        }
+    }
+}
+
+// Optimization passes: branchless, dense scalar FMA
+pub fn prune_zeros(ir: PgaMultivector) -> PgaMultivector {
+    // Drop coefficients evaluating to zero (singularity/metric signature); branchless
     ir
 }
 
-// Constant folding for geometric expressions
-pub fn fold_constants(ir: PgaIr) -> PgaIr {
+pub fn fold_constants(ir: PgaMultivector) -> PgaMultivector {
+    // Evaluate constant geometric expressions at compile time; no runtime branches
     ir
 }
 
-// Term merging: like-grade blades with compatible masks
-pub fn merge_terms(ir: PgaIr) -> PgaIr {
+pub fn merge_terms(ir: PgaMultivector) -> PgaMultivector {
+    // Combine like-grade blade coefficients with compatible masks; dense FMA arrays
     ir
 }

@@ -1,17 +1,24 @@
-use crate::parser::ast::PgaAst;
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PgaToken {
-    Wedge, Vee, GeomProduct, Sandwich,
-    Intersect, PointLineIntersect,
-    MotorChain, RedundancyMetric,
+    // Keywords matching geometric primitives
+    Plane, Point, Line, Motor, Let,
+    // Operators for geometric algebra products
+    Wedge, Vee, GeomProduct, Sandwich, SandwichPoint, SandwichPlane,
+    Intersect, PointLineIntersect, MotorChain, RedundancyMetric,
     SphereIntersectPlane, SphereIntersectSphere,
-    Plane, Point, Motor, Line,
-    Num(f32),
-    Comma, LParen, RParen, Arrow, Eq,
+    // Additional primitive keywords
+    Mul, Inverse,
+    // Structural punctuation
+    Comma, LParen, RParen, Arrow, Eq, Assign, SemiColon,
+    // Terminator
+    Eof,
+    // Literals and identifiers
     Ident(String),
     FloatLiteral(f32),
-    Eof,
+    // Skip whitespace between tokens (essential for branchless parsing flows)
+    Skip,
 }
 
 pub fn tokenize(input: &str) -> Vec<PgaToken> {
@@ -23,6 +30,8 @@ pub fn tokenize(input: &str) -> Vec<PgaToken> {
                 "vee" => tokens.push(PgaToken::Vee),
                 "geometric_product" => tokens.push(PgaToken::GeomProduct),
                 "sandwich" => tokens.push(PgaToken::Sandwich),
+                "sandwich_point" => tokens.push(PgaToken::SandwichPoint),
+                "sandwich_plane" => tokens.push(PgaToken::SandwichPlane),
                 "intersect_plane_point" => tokens.push(PgaToken::Intersect),
                 "point_line_intersect" => tokens.push(PgaToken::PointLineIntersect),
                 "motor_chain" => tokens.push(PgaToken::MotorChain),

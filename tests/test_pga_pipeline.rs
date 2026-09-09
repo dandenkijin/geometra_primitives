@@ -1,3 +1,4 @@
+#![feature(portable_simd)]
 use geometra_pg::*;
 use geometra_pg::parser::ast::PgaAst;
 
