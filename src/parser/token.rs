@@ -2,38 +2,38 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum PgaToken {
     // Keywords matching geometric primitives
-    #[token("plane")]
+    // Token("...", priority)
     Plane,
-    #[token("point")]
+    // Token("...", priority)
     Point,
-    #[token("line")]
+    // Token("...", priority)
     Line,
-    #[token("motor")]
+    // Token("...", priority)
     Motor,
-    #[token("let")]
+    // Token("...", priority)
     Let,
 
     // Operators for geometric algebra products
-    #[token("^")]
+    // Token("...", priority)
     Wedge,
-    #[token("v", priority = 2)]
+    // Token("...", priority)
     Vee,
-    #[token("*")]
+    // Token("...", priority)
     Mul,
-    #[token("~")]
+    // Token("...", priority)
     Inverse,
 
     // Identifiers and numeric literals
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*", priority = 1)]
     Ident,
 
-    #[regex(r"-?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")]
+    // Regex("...", skip/priority)
     FloatLiteral,
 
     // Structural punctuation
-    #[token("=")]
+    // Token("...", priority)
     Assign,
-    #[token(";")]
+    // Token("...", priority)
     SemiColon,
 
     // Expanded geometric primitive syntax keywords
@@ -55,7 +55,7 @@ pub enum PgaToken {
     Eq,
 
     // Skip whitespace
-    #[regex(r"[ \t\n\f\r]+", logos::skip)]
+    // Regex("...", skip/priority)
     Skip,
 }
 

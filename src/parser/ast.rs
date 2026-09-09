@@ -7,4 +7,8 @@ pub enum PgaAst {
     SandwichPlane(Motor, Plane),
     IntersectPlanePoint(Plane, Point),
     Chain(Vec<Motor>),
+    Rotor(Motor),
+    Projection(Plane, Plane),
+    Rejection(Plane, Plane),
+    Pseudoscalar(f32),
 }

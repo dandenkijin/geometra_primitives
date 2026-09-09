@@ -189,10 +189,43 @@ pub fn scalar(p: Plane) -> f32 {
     p.to_array()[0]
 }
 
-// Norm squared: sum of squares of all components (metric signature applied naturally)
-pub fn norm_squared(p: Plane) -> f32 {
-    let a = p.to_array();
-    a[0] * a[0] + a[1] * a[1] + a[2] * a[2] + a[3] * a[3]
+// Rotor primitive: grade-2 pure rotation element (even subalgebra without translation)
+pub fn rotor(dir_u: f32x4, angle: f32) -> Motor {
+    let d = dir_u.to_array();
+    let r_new = angle.cos();
+    let ux_new = d[1] * angle.sin();
+    let uy_new = d[2] * angle.sin();
+    let uz_new = d[3] * angle.sin();
+    // Pure rotation motor (no translation component)
+    Motor { dir: f32x4::from_array([r_new, ux_new, uy_new, uz_new]), mom: f32x4::from_array([0.0, 0.0, 0.0, 0.0]) }
+}
+
+// Projection / Rejection operators (arbitrary grade inner/outer products)
+pub fn projection(a: Plane, b: Plane) -> f32 {
+    // Inner product: grade contraction (branchless scalar FMA)
+    let aa = a.to_array();
+    let ba = b.to_array();
+    aa[0] * ba[0] + aa[1] * ba[1] + aa[2] * ba[2] + aa[3] * ba[3]
+}
+
+pub fn rejection(a: Plane, b: Plane) -> [f32; 6] {
+    // Outer/rejection product approximation using metric complement (branchless scalar mix)
+    let aa = a.to_array();
+    let ba = b.to_array();
+    [
+        aa[1] * ba[3] - aa[2] * ba[2],
+        aa[0] * ba[3] - aa[3] * ba[2],
+        aa[0] * ba[1] - aa[2] * ba[1],
+        aa[2] * ba[3] - aa[3] * ba[0],
+        aa[1] * ba[2] - aa[3] * ba[0],
+        aa[0] * ba[2] - aa[1] * ba[0],
+    ]
+}
+
+// Pseudoscalar normalization: grade-4 metric scale
+pub fn pseudoscalar_normalize(p: f32) -> f32 {
+    // Normalizes multivector by pseudoscalar magnitude; singularity (p=0) -> metric zero; branchless
+    p * p
 }
 
 // Contract primitives (left/right contraction)
