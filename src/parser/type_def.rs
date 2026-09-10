@@ -1,7 +1,7 @@
 // PgaType: compile-time graded multivector classification for R_3_0_1
 // Used by PgaIr to enforce valid geometric products (prevent cross-grade errors)
 
-use crate::F32x4;
+
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PgaType {
