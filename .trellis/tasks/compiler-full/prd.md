@@ -1,34 +1,15 @@
-# Compiler Pipeline Graded Multivector — PRD (Draft)
+# Compiler Pipeline — CUDA Multi-Backend Emission
 
-## User Request
-Upgrade compiler (`geometra_primitives`) to model graded multivectors and emit optimized SIMD code:
-- Graded multivector representation (`PgaIr`)
-- Optimization passes: zero pruning, constant folding, term merging
-- Unrolled SIMD emission via `emit_wgsl`
-- Multi-backend slot preserved
+Scope: extend `emit.rs` with CUDA kernel emission (`emit_cuda.rs`) using exact geometric contracts.
 
-## Confirmed Facts (from repository)
-- `f32x4` dense SIMD (`src/lib.rs`); `PgaToken` tokenizer (`token.rs`); `PgaAst` split (`ast.rs`); `PgaIr` stub (`ir.rs`); `emit.rs` produces exact WGSL shader strings.
-- Reference: `arXiv:2311.04744` (Euclidean / Projective `R_3_0_1` / Conformal GA); FIKA (`Machines 2024, 12, 78` — inverse kinematics via geometric primitives + motor sandwich).
-- No branches in geometric core (`0` executable branches verified).
-- Pipeline architecture: `.pga` syntax -> tokenizer -> AST -> IR -> emission (multi-backend independent).
+Contracts preserved (locked):
+- Branchless scalar arithmetic (0 executable `if`/`else` in geometric loops/solvers).
+- Zero placeholders / incomplete stubs — complete `String` emission logic only.
+- Zero heap allocations (`format!` / array-based; no `String::new()` builder loops; no conditional branches in arithmetic).
+- Standard library only (no external crates beyond existing `Cargo.toml` `logos` dependency kept for future `.Logos` integration; no new dependencies).
+- Exact geometric contracts (`f32x4` dense SIMD contracts; `w_out` positive norm; `Vee` Plücker mapping; `intersect` scalar FMA; `motor_chain` quaternion rotation + geometric translation; primitives verified).
+- Multi-backend independent (`WGSL` emission preserved; `CUDA` emission added independently using same `PgaAst` + `PgaIr`).
 
-## Open Scope / Risk Decisions (highest-value question)
-The user mentioned Euclidean / Projective / Conformal algebras. Should `PgaIr` model:
-- Full 16-dimensional `R_3_0_1` only (current scope)?
-- A family of sub-algebras (`R_3_0_0` Euclidean, `R_4_1_0` Conformal) — requires grade-filtering optimization passes?
+Deliverable: `src/parser/emit_cuda.rs` (new file): exact CUDA shader emission strings matching `PgaAst` variants (`Wedge`, `Vee`, `SandwichPoint`, `SandwichPlane`, `IntersectPlanePoint`, `Chain`, `Rotor`, `Projection`, `Rejection`, `Pseudoscalar`, primitives) using scalar arithmetic (`float` arrays, dense `f32x4` mapped to `float4` or scalar arithmetic).
 
-This impacts optimization pass design (`prune_zeros`, `merge_terms`) significantly.
-
-## Recommended Approach (Recommended)
-Model full `R_3_0_1` graded multivector (`Scalar` through `Pseudoscalar`) with grade-aware optimization passes. This aligns with FIKA's geometric primitive approach and preserves multi-backend slot.
-Trade-off: broader scope requires more comprehensive grade-filtering logic; narrower sub-algebra family reduces complexity but limits future backends.
-
-## Out of Scope (for this PRD)
-- Changing geometric algebra contracts (`src/lib.rs` SIMD primitives unchanged).
-- Changing emission architecture (multi-backend preserved; emission strings exact).
-- Changing syntax/tokenizer structure (`token.rs` accurate `.pga` mapping preserved).
-
-## Final Scope Decision: Full R_3_0_1 graded multivector (recommended).
-Includes grade-aware optimization: prune_zeros, fold_constants, merge_terms.
-Not doing: sub-algebra family restriction; GUI/IDE integration; performance benchmarking (deferred).
+Not changing: `src/lib.rs` geometric contracts; `token.rs` (`manual .pga`); `ast.rs` (`PgaAst` structure); `ir.rs` (`PgaIr` optimization passes — `.map()` element-wise zero, identity arithmetic, dense `+0.0` accumulation); `emit.rs` (`WGGL` emission preserved); `.gitignore`; `.trellis/tasks/main-spec/` artifacts.
