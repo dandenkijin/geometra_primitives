@@ -68,3 +68,11 @@ pub fn parse(tokens: Vec<token::PgaToken>) -> Result<ast::PgaAst, String> {
         None => Err("unexpected EOF after filtering geometric tokens".to_string()),
     }
 }
+
+pub fn parse_and_lower(input: &str) -> Result<Vec<ir::Op>, String> {
+    // Integration layer: .pga syntax -> token stream -> PgaAst -> dense scalar label pipeline (Op sequence)
+    // Zero String allocations in arithmetic path; standard library only; contracts preserved
+    let tokens = token::tokenize(input);
+    let ast = parse(tokens)?;
+    Ok(ir::lower_ast_to_ir(&ast))
+}
