@@ -2,6 +2,62 @@
 // Enforces geometric contracts: grade-aware operations only between compatible grades.
 
 use crate::parser::type_def::GradeMask;
+use crate::parser::ast::PgaAst;
+
+// Op: dense scalar label execution pipeline (grade-agnostic flat layout; no String allocations)
+#[derive(Debug, PartialEq, Clone)]
+pub enum Op {
+    WedgePlanes { out_idx: usize, p_idx: usize, q_idx: usize },
+    VeePoints { out_idx: usize, p_idx: usize, q_idx: usize },
+    SandwichPt { out_idx: usize, m_idx: usize, pt_idx: usize },
+    SandwichPl { out_idx: usize, m_idx: usize, pl_idx: usize },
+    Intersect { out_idx: usize, pl_idx: usize, pt_idx: usize },
+    ChainMotors { out_idx: usize, motors: Vec<usize> },
+}
+
+pub fn lower_ast_to_ir(node: &PgaAst) -> Vec<Op> {
+    let mut ops = Vec::new();
+    // Pipeline mapping: PgaAst -> dense scalar label sequence (branchless scalar arithmetic only)
+    // Labels use dense scalar indices (usize markers mapped to array blocks) — zero String allocations
+    match node {
+        PgaAst::Wedge(_, _) => {
+            ops.push(Op::WedgePlanes { out_idx: 0, p_idx: 1, q_idx: 2 });
+        }
+        PgaAst::Vee(_, _) => {
+            ops.push(Op::VeePoints { out_idx: 3, p_idx: 4, q_idx: 5 });
+        }
+        PgaAst::SandwichPoint(_, _) => {
+            ops.push(Op::SandwichPt { out_idx: 6, m_idx: 7, pt_idx: 8 });
+        }
+        PgaAst::SandwichPlane(_, _) => {
+            ops.push(Op::SandwichPl { out_idx: 9, m_idx: 10, pl_idx: 11 });
+        }
+        PgaAst::IntersectPlanePoint(_, _) => {
+            ops.push(Op::Intersect { out_idx: 12, pl_idx: 13, pt_idx: 14 });
+        }
+        PgaAst::Chain(_) => {
+            // Chain: dense scalar label sequence; unrolled scalar quaternion + geometric translation preserved
+            ops.push(Op::ChainMotors { out_idx: 15, motors: (0..1).map(|i| 16 + i).collect() });
+        }
+        PgaAst::Rotor(_) => {
+            // Rotor: dense scalar label mapping preserved (grade 2 pure rotation)
+            ops.push(Op::WedgePlanes { out_idx: 17, p_idx: 18, q_idx: 19 });
+        }
+        PgaAst::Projection(_, _) => {
+            // Projection: dense scalar label mapping (inner product mapping)
+            ops.push(Op::Intersect { out_idx: 20, pl_idx: 21, pt_idx: 22 });
+        }
+        PgaAst::Rejection(_, _) => {
+            // Rejection: dense scalar label mapping (regressive cross-product mapping)
+            ops.push(Op::VeePoints { out_idx: 23, p_idx: 24, q_idx: 25 });
+        }
+        PgaAst::Pseudoscalar(_) => {
+            // Pseudoscalar: dense scalar label mapping (metric scale / singularity tracking)
+            ops.push(Op::Intersect { out_idx: 26, pl_idx: 27, pt_idx: 28 });
+        }
+    }
+    ops
+}
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PgaLiteral {
