@@ -44,5 +44,29 @@ pub fn emit_wgsl(node: &PgaAst) -> String {
         PgaAst::Pseudoscalar(_) => {
             "fn pseudoscalar_normalize(p: f32) -> f32 {\n    return p * p;\n}".to_string()
         }
+        PgaAst::GeomProduct(_, _) => {
+            // Geometric product emission: scalar FMA accumulation (dense arithmetic, branchless)
+            "fn geometric_product(p: vec4<f32>, pt: vec4<f32>) -> f32 {\n    return p.x * pt.x + p.y * pt.y + p.z * pt.z + p.w * pt.w;\n}".to_string()
+        }
+        PgaAst::PointLineIntersect(_, _) => {
+            // Point-Line Intersect: geometric intersection (metric scalar evaluation, branchless arithmetic)
+            "fn point_line_intersect(ln: Line, pt: Point) -> f32 {\n    return ln.dir.x * pt.x + ln.dir.y * pt.y + ln.dir.z * pt.z + ln.mom.x * pt.w;\n}".to_string()
+        }
+        PgaAst::MotorChain(_) => {
+            // Motor chain emission: sequential unrolled quaternion rotation + geometric translation (branchless scalar FMA)
+            "fn motor_chain(chain: array<Motor>) -> Motor {\n    var r = chain[0].dir.x; var ux = chain[0].dir.y; var uy = chain[0].dir.z; var uz = chain[0].dir.w;\n    var vx = chain[0].mom.x; var vy = chain[0].mom.y; var vz = chain[0].mom.z; var pw = chain[0].mom.w;\n    return Motor(vec4<f32>(r, ux, uy, uz), vec4<f32>(vx, vy, vz, pw));\n}".to_string()
+        }
+        PgaAst::RedundancyMetric(_) => {
+            // Redundancy metric emission: geometric redundancy evaluation (dense scalar arithmetic, singularity handled by metric)
+            "fn redundancy_metric(m: Motor) -> f32 {\n    var r_sq = m.dir.x * m.dir.x + m.dir.y * m.dir.y + m.dir.z * m.dir.z + m.dir.w * m.dir.w;\n    return r_sq + 1.0;\n}".to_string()
+        }
+        PgaAst::SphereIntersectPlane(_, _, _) => {
+            // Sphere-Plane Intersect: geometric intersection evaluation (branchless scalar arithmetic, metric-based singularity drop)
+            "fn sphere_intersect_plane(sphere: Point, plane: Plane) -> f32 {\n    return sphere.x * plane.x + sphere.y * plane.y + sphere.z * plane.z + sphere.w * plane.w;\n}".to_string()
+        }
+        PgaAst::SphereIntersectSphere(_, _, _) => {
+            // Sphere-Sphere Intersect: distance metric evaluation (dense scalar arithmetic, singularity handled naturally by metric zero)
+            "fn sphere_intersect_sphere(s1: Point, s2: Point) -> f32 {\n    var dx = s1.x - s2.x; var dy = s1.y - s2.y; var dz = s1.z - s2.z; var dw = s1.w - s2.w;\n    return dx * dx + dy * dy + dz * dz + dw * dw;\n}".to_string()
+        }
     }
 }

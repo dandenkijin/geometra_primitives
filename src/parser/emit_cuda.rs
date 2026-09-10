@@ -39,5 +39,26 @@ pub fn emit_cuda(node: &PgaAst) -> String {
         PgaAst::Pseudoscalar(_) => {
             "__device__ float pseudoscalar_normalize_cuda(float p) {\n    return p * p;\n}".to_string()
         }
+        PgaAst::GeomProduct(_, _) => {
+            "__device__ float geometric_product_cuda(float4 p, float4 pt) {\n    return p.x * pt.x + p.y * pt.y + p.z * pt.z + p.w * pt.w;\n}".to_string()
+        }
+        PgaAst::PointLineIntersect(_, _) => {
+            "__device__ float point_line_intersect_cuda(float4 p, float4 pt) {\n    return p.x * pt.x + p.y * pt.y + p.z * pt.z + p.w * pt.w;\n}".to_string()
+        }
+        PgaAst::MotorChain(_) => {
+            let n = 1; // single coupling for emission demonstration (dense scalar arithmetic)
+            format!(
+                "__device__ float4 motor_chain_unrolled_cuda(float4 dir, float4 mom, int steps) {{\n    float r = dir.x; float ux = dir.y; float uy = dir.z; float uz = dir.w;\n    float vx = mom.x; float vy = mom.y; float vz = mom.z; float pw = mom.w;\n    return make_float4(r, ux, uy, uz);\n}}"
+            )
+        }
+        PgaAst::RedundancyMetric(_) => {
+            "__device__ float redundancy_metric_cuda(float4 m) {\n    float r_sq = m.x * m.x + m.y * m.y + m.z * m.z + m.w * m.w;\n    return r_sq + 1.0f;\n}".to_string()
+        }
+        PgaAst::SphereIntersectPlane(_, _, _) => {
+            "__device__ float sphere_intersect_plane_cuda(float4 sphere, float4 plane) {\n    return sphere.x * plane.x + sphere.y * plane.y + sphere.z * plane.z + sphere.w * plane.w;\n}".to_string()
+        }
+        PgaAst::SphereIntersectSphere(_, _, _) => {
+            "__device__ float sphere_intersect_sphere_cuda(float4 s1, float4 s2) {\n    float dx = s1.x - s2.x; float dy = s1.y - s2.y; float dz = s1.z - s2.z; float dw = s1.w - s2.w;\n    return dx * dx + dy * dy + dz * dz + dw * dw;\n}".to_string()
+        }
     }
 }

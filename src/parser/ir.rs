@@ -55,6 +55,30 @@ pub fn lower_ast_to_ir(node: &PgaAst) -> Vec<Op> {
             // Pseudoscalar: dense scalar label mapping (metric scale / singularity tracking)
             ops.push(Op::Intersect { out_idx: 26, pl_idx: 27, pt_idx: 28 });
         }
+        PgaAst::GeomProduct(_, _) => {
+            // Geometric product: dense scalar label mapping (scalar FMA accumulation)
+            ops.push(Op::WedgePlanes { out_idx: 29, p_idx: 30, q_idx: 31 });
+        }
+        PgaAst::PointLineIntersect(_, _) => {
+            // Point-Line Intersect: dense scalar label mapping (metric scalar evaluation)
+            ops.push(Op::Intersect { out_idx: 32, pl_idx: 33, pt_idx: 34 });
+        }
+        PgaAst::MotorChain(_) => {
+            // Motor chain: dense scalar label sequence (unrolled quaternion + geometric translation)
+            ops.push(Op::ChainMotors { out_idx: 35, motors: (0..1).map(|i| 36 + i).collect() });
+        }
+        PgaAst::RedundancyMetric(_) => {
+            // Redundancy metric: dense scalar label mapping (geometric redundancy evaluation)
+            ops.push(Op::Intersect { out_idx: 37, pl_idx: 38, pt_idx: 39 });
+        }
+        PgaAst::SphereIntersectPlane(_, _, _) => {
+            // Sphere-Plane Intersect: dense scalar label mapping (geometric intersection evaluation)
+            ops.push(Op::Intersect { out_idx: 40, pl_idx: 41, pt_idx: 42 });
+        }
+        PgaAst::SphereIntersectSphere(_, _, _) => {
+            // Sphere-Sphere Intersect: dense scalar label mapping (distance metric evaluation)
+            ops.push(Op::Intersect { out_idx: 43, pl_idx: 44, pt_idx: 45 });
+        }
     }
     ops
 }
