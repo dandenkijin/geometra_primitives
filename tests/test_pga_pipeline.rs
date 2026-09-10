@@ -5,13 +5,14 @@ use geometra_pg::parser::ast::PgaAst;
 #[test]
 fn full_pipeline_pga_to_wgsl() {
     // Full pipeline: .pga syntax -> tokenizer -> PgaAst -> WGGL emission -> geometric verification
-    let syntax = "wedge plane plane; vee point point; sandwich_point motor point; intersect_plane_point plane point; motor_chain motor; sphere_intersect_plane point motor plane; sphere_intersect_sphere point point point; geometric_product plane point; redundancy_metric motor;";
+    let syntax = "wedge plane plane; vee point point; sandwich_point motor point; intersect_plane_point plane point; point_line_intersect plane point; motor_chain motor; sphere_intersect_plane point motor plane; sphere_intersect_sphere point point point; geometric_product plane point; redundancy_metric motor;";
     let tokens = geometra_pg::parser::token::tokenize(syntax);
     assert!(!tokens.is_empty());
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::Wedge));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::Vee));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::SandwichPoint));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::GeomProduct));
+    assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::PointLineIntersect));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::MotorChain));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::Intersect));
     assert!(tokens.contains(&geometra_pg::parser::token::PgaToken::SphereIntersectPlane));
