@@ -26,6 +26,10 @@ fn full_pipeline_pga_to_wgsl() {
     );
     let shader = geometra_pg::parser::emit::emit_wgsl(&ast_wedge);
     assert!(shader.contains("fn wedge"));
+    assert!(shader.contains("fn vee"));
+    assert!(shader.contains("fn sandwich_point"));
+    assert!(shader.contains("fn intersect_plane_point"));
+    assert!(shader.contains("fn motor_chain_unrolled"));
     assert!(shader.contains("vec4<f32>"));
     assert!(!shader.contains("if ") && !shader.contains(" else ") && !shader.contains("?") && !shader.contains(": "));
 

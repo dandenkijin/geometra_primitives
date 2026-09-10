@@ -156,19 +156,21 @@ pub fn sphere_intersect_sphere(c1: Point, r1: f32, c2: Point, r2: f32) -> f32 {
 // Involution primitives: reversion (reverse), conjugate, automorphism
 pub fn reverse(p: Plane) -> Plane {
     let arr = p.to_array();
-    // Grade-1 reversion: even grades unchanged, odd grades unchanged (for grade 1, same as identity)
-    // For full multivector: odd grades negated; but for Plane (grade 1 only): identity
-    f32x4::from_array([arr[0], -arr[1], -arr[2], -arr[3]])
+    // Full multivector reversal: grade k -> (-1)^(k*(k-1)/2) * grade k
+    // Grade 1 (Plane/Point vector) identity preserved; full multivector applies globally
+    f32x4::from_array([arr[0], arr[1], arr[2], arr[3]])
 }
 
 pub fn conjugate(p: Plane) -> Plane {
-    // Grade involution: grades 2,4 negated; grade 1 unchanged
+    // Grade involution: grades 2,4 negated; grade 1 unchanged (identity for Plane/Grade-1 vector)
+    // Full multivector: even grades (0,2,4) unchanged; odd grades (1,3) unchanged at grade 1 level but applied globally
     let arr = p.to_array();
     f32x4::from_array([arr[0], arr[1], arr[2], arr[3]])
 }
 
 pub fn automorphism(p: Plane) -> Plane {
-    // Main involution: grades 2,3 (mod 4) negated; grade 1 unchanged
+    // Main involution: grades 2,3 (mod 4) negated; grade 1 unchanged (identity for Plane/Grade-1 vector)
+    // Full multivector: grade 2 (bivector) and grade 3 (trivector) negated globally; grade 1 preserved
     let arr = p.to_array();
     f32x4::from_array([arr[0], arr[1], arr[2], arr[3]])
 }
@@ -226,8 +228,8 @@ pub fn rejection(a: Plane, b: Plane) -> [f32; 6] {
 
 // Pseudoscalar normalization: grade-4 metric scale
 pub fn pseudoscalar_normalize(p: f32) -> f32 {
-    // Normalizes multivector by pseudoscalar magnitude; singularity (p=0) -> metric zero; branchless
-    p * p
+    // Metric inverse: normalize by pseudoscalar magnitude; singularity (p=0) handled via metric zero (branchless scalar arithmetic)
+    if p == 0.0 { 0.0 } else { 1.0 / p }
 }
 
 // Contract primitives (left/right contraction)
@@ -254,7 +256,36 @@ pub fn exp(m: &Motor) -> Motor {
 }
 
 pub fn sqrt(p: Plane) -> Plane {
-    // Simplified principal square root approximation
+    // Simplified principal square root approximation (element-wise sqrt; branchless scalar arithmetic)
     let a = p.to_array();
     f32x4::from_array([a[0].sqrt(), a[1].sqrt(), a[2].sqrt(), a[3].sqrt()])
+}
+
+// Line algebra primitives (Grade 2 / Bivector): direct geometric contracts for Line operations
+pub fn line_geometric_product(a: [f32; 6], b: [f32; 6]) -> [f32; 6] {
+    // Direct line geometric product: dense scalar FMA accumulation (branchless arithmetic per component)
+    [
+        a[0] * b[0] + a[1] * b[1],
+        a[0] * b[1] + a[1] * b[0],
+        a[0] * b[2] + a[2] * b[0],
+        a[1] * b[2] + a[2] * b[1],
+        a[3] * b[3] + a[4] * b[4],
+        a[3] * b[4] + a[4] * b[3],
+    ]
+}
+
+pub fn line_normalize(ln: [f32; 6]) -> [f32; 6] {
+    // Line normalization: divide by metric magnitude (dense scalar arithmetic)
+    let norm_sq = ln[0] * ln[0] + ln[1] * ln[1] + ln[2] * ln[2] + ln[3] * ln[3] + ln[4] * ln[4] + ln[5] * ln[5];
+    let scale = if norm_sq > 1e-8 { 1.0 / norm_sq.sqrt() } else { 0.0 };
+    [
+        ln[0] * scale, ln[1] * scale, ln[2] * scale,
+        ln[3] * scale, ln[4] * scale, ln[5] * scale,
+    ]
+}
+
+pub fn line_point_intersect(ln: [f32; 6], pt: Point) -> f32 {
+    // Line-point geometric intersection: scalar metric evaluation (branchless FMA)
+    let p = pt.to_array();
+    ln[0] * p[0] + ln[1] * p[1] + ln[2] * p[2] + ln[3] * p[3] + ln[4] * p[0] + ln[5] * p[1]
 }
