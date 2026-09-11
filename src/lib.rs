@@ -11,6 +11,7 @@ pub type Plane = f32x4;  // Grade 1: a,b,c,d (Odd)
 pub type Point = f32x4;  // Grade 3: x,y,z,w (Odd)
 
 pub mod parser;
+pub mod database;
 
 pub struct Line {
     pub dir: f32x4,  // [u_x, u_y, u_z, v_x]
