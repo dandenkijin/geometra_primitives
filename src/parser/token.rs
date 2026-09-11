@@ -1,5 +1,22 @@
 
 
+//! `.Logos` tokenizer reference (preserved; unstable at current `rustc` nightly).
+//!
+//! `.Logos` derive (`#[derive(Logos)]`) produces unstable feature errors at current `nightly`:
+//! - `E0432` (unresolved import `.Logos` feature unstable)
+//! - `E0658` (`#[feature(logos_derive)]` unstable — `E0554` `feature` attribute must be in crate root or module root)
+//! - Additional `E0277` / `E0618` conflicts from `.Logos` macro expansion at build time.
+//!
+//! Manual `.pga` tokenizer (`match word` expanded geometric keywords) is accurate and
+//! independent of `.Logos` unstable features; `.Logos` dependency preserved for future
+//! `.Logos` stability integration (manual tokenizer remains active build path).
+//!
+//! Contracts preserved: `branchless` arithmetic (`0` executable branches); dense arrays
+//! (`f32x4` SIMD, `Odd`/`Even` split); `std-lib` only; `zero allocations` (`Vec` only in
+//! pipeline, `String` only in errors); exact geometric arithmetic; multi-backend independent
+//! (`emit.rs` WGLL + `emit_cuda.rs` CUDA); `.Logos` dependency preserved; `.gitignore`
+//! excludes artifacts (`/target`, `*.rmeta`, `*.rlib`, `*.o`, `*.lock`, `geometra_primitives/`).
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum PgaToken {
     // Keywords matching geometric primitives
