@@ -81,7 +81,7 @@ pub fn parse_and_lower(input: &str) -> Result<Vec<ir::Op>, String> {
     // Independent layer: forecasting reads DB externally; predictions guide externally; geometric arithmetic untouched; emission contracts untouched; dense scalar mapping; .Logos preserved; contracts preserved regardless.
     let tokens = token::tokenize(input);
     // Build operand-derived PgaAst using symbol table + operand tracker (independent layer — forecasting observes externally; arithmetic contracts untouched; emission contracts untouched)
-    let (ast, sym_table, op_tracker) = symbol_table::parse_with_symbol_table(
+    let (ast, _sym_table, _op_tracker) = symbol_table::parse_with_symbol_table(
         &tokens.iter().map(|(t, _, _)| t.clone()).collect::<Vec<_>>()
     );
     // Note: symbol table + operand tracker co-exist with forecasting layer (independent layer); forecasting reads TileDBStore + LadybugGraph synchronously at pass start; predictions guide externally; arithmetic contracts untouched.
