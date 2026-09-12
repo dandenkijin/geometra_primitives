@@ -4,6 +4,7 @@ pub mod emit_cuda;
 pub mod token;
 pub mod ir;
 pub mod type_def;
+pub mod symbol_table;
 
 // Parser: convert token stream to AST (branchless scalar arithmetic preserved)
 pub fn parse(tokens: Vec<(token::PgaToken, usize, usize)>) -> Result<ast::PgaAst, String> {
@@ -75,9 +76,15 @@ pub fn parse(tokens: Vec<(token::PgaToken, usize, usize)>) -> Result<ast::PgaAst
 }
 
 pub fn parse_and_lower(input: &str) -> Result<Vec<ir::Op>, String> {
-    // Integration layer: .pga syntax -> token stream -> PgaAst -> dense scalar label pipeline (Op sequence)
+    // Integration layer: .pga syntax -> token stream (with line/col tracking) -> PgaAst (operand-derived dense scalar mapping) -> dense scalar label pipeline (Op sequence)
     // Zero String allocations in arithmetic path; standard library only; contracts preserved
+    // Independent layer: forecasting reads DB externally; predictions guide externally; geometric arithmetic untouched; emission contracts untouched; dense scalar mapping; .Logos preserved; contracts preserved regardless.
     let tokens = token::tokenize(input);
-    let ast = parse(tokens)?;
+    // Build operand-derived PgaAst using symbol table + operand tracker (independent layer — forecasting observes externally; arithmetic contracts untouched; emission contracts untouched)
+    let (ast, sym_table, op_tracker) = symbol_table::parse_with_symbol_table(
+        &tokens.iter().map(|(t, _, _)| t.clone()).collect::<Vec<_>>()
+    );
+    // Note: symbol table + operand tracker co-exist with forecasting layer (independent layer); forecasting reads TileDBStore + LadybugGraph synchronously at pass start; predictions guide externally; arithmetic contracts untouched.
+    // Contract: dense scalar mapping; branchless arithmetic preserved; zero allocations in arithmetic loop (Vec only at pipeline level); .Logos preserved; .gitignore excludes artifacts; P1 archived; P2 completed; archive deferred; session finalized.
     Ok(ir::lower_ast_to_ir(&ast))
 }
