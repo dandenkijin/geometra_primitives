@@ -34,10 +34,19 @@ cargo +nightly test
 ```
 src/lib.rs            — geometric algebra primitives (branchless SIMD)
 src/parser/ast.rs     — PgaAst enum (Wedge, Vee, SandwichPoint, SandwichPlane, ...)
-src/parser/token.rs   — .pga tokenizer (logos::Logos derive)
-src/parser/ir.rs      — compiler IR (PgaIr optimization layer)
-src/parser/emit.rs    — WGSL shader emission (exact contracts)
-src/parser/mod.rs     — parser module exports
+src/parser/token.rs   — .pga tokenizer (manual expanded geometric keywords; .Logos unstable interaction E0432/E0658/E0277/E0618 documented; manual tokenizer accurate; .Logos dependency preserved for future stability)
+src/parser/mod.rs     — parser module exports (parse() + parse_and_lower() + diagnostics: line/col tracking)
+src/parser/symbol_table.rs — operand extraction + symbol table (independent layer; dense scalar labels; contracts preserved)
+src/parser/ir.rs      — PgaIr optimization layer (dense scalar Op labels + grade_index mapping + grade_mask validation; PgaMultivector coexisting; contracts preserved)
+src/parser/emit.rs    — WGSL shader emission (exact contracts; multi-backend independent)
+src/parser/emit_cuda.rs — CUDA emission (independent multi-backend; contracts preserved)
+src/parser/type_def.rs — GradeMask + PgaType (dense scalar grade tracking; contracts preserved)
+src/database/mod.rs   — database module exports (independent layer; forecasting + ring-buffer + symbol table)
+src/database/ladybug.rs — LadybugDB flat index arrays (SIMD-aligned IDs)
+src/database/tiledb.rs — TileDB 3D array schema ([Module_ID, Pass_ID, Timestamp]; 64-byte aligned; contracts preserved)
+src/database/forecast.rs — forecasting engine (branchless scalar arithmetic; f32x4 aligned; zero allocations; contracts preserved)
+src/database/ring_buffer.rs — async ring-buffer (fixed-size aligned; contracts preserved)
+src/database/integration_demo.rs — forecasting + ring-buffer + symbol table integration demo (independent layer; contracts preserved)
 ```
 
 ## Key Primitives
