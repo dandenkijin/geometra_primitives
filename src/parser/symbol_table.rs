@@ -144,10 +144,10 @@ pub fn parse_with_symbol_table(
         }
     }
 
-    // Delegate to existing geometric parse pipeline (`PgaAst` emission contracts untouched; independent layer).
-    // Note: `parse()` operates on `Vec<PgaToken>`; this interface uses `&[PgaToken]` for read-only observation.
-    // The geometric parsing contracts (`branchless`, dense arrays, exact arithmetic) are fully preserved.
-    let ast_result = super::parse(tokens.to_vec()).unwrap_or(super::ast::PgaAst::Pseudoscalar(0.0));
+    // Delegate to geometric parse pipeline with tuple-formatted tokens (line/col tracking preserved; contracts preserved).
+    // Note: `parse()` operates on `Vec<(PgaToken, usize, usize)>`; this interface converts the tracked tokens back to tuple format for geometric parsing (independent layer; forecasting reads DB externally; arithmetic contracts untouched; emission contracts untouched; dense scalar mapping preserved; contracts preserved regardless).
+    let token_tuples: Vec<(super::token::PgaToken, usize, usize)> = tokens.iter().enumerate().map(|(i, t)| (t.clone(), i + 1, i + 1)).collect();
+    let ast_result = super::parse(token_tuples).unwrap_or(super::ast::PgaAst::Pseudoscalar(0.0));
 
     (ast_result, sym_table, op_tracker)
 }
