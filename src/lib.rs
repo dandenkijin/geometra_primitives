@@ -73,10 +73,29 @@ pub fn sandwich(m: &Motor, target: Point) -> Point {
     // Exact PGA sandwich: P' = M * P * reverse(M) — quaternion rotation + geometric translation
     let r_rot = d[0]; let ux = d[1]; let uy = d[2]; let uz = d[3];
     let vx = mo[0]; let vy = mo[1]; let vz = mo[2]; let pw = mo[3];
-    let rot_x = r_rot * t[0] + ux * t[1] + uy * t[2] + uz * t[3];
-    let rot_y = r_rot * t[1] - ux * t[0] + uy * t[3] - uz * t[2];
-    let rot_z = r_rot * t[2] - ux * t[3] + uy * t[0] - uz * t[1];
-    let w_out = t[3] * (r_rot * r_rot + ux * ux + uy * uy + uz * uz);
+    
+    // Exact quaternion sandwich: v' = q * v * q⁻¹
+    // q = (r_rot, ux, uy, uz), q⁻¹ = (r_rot, -ux, -uy, -uz) for unit quaternions
+    let r2 = r_rot * r_rot;
+    let ux2 = ux * ux;
+    let uy2 = uy * uy;
+    let uz2 = uz * uz;
+    let norm = r2 + ux2 + uy2 + uz2;
+    
+    let rot_x = (r2 + ux2 - uy2 - uz2) * t[0]
+              + 2.0 * (ux * uy - r_rot * uz) * t[1]
+              + 2.0 * (ux * uz + r_rot * uy) * t[2];
+    
+    let rot_y = 2.0 * (ux * uy + r_rot * uz) * t[0]
+              + (r2 - ux2 + uy2 - uz2) * t[1]
+              + 2.0 * (uy * uz - r_rot * ux) * t[2];
+    
+    let rot_z = 2.0 * (ux * uz - r_rot * uy) * t[0]
+              + 2.0 * (uy * uz + r_rot * ux) * t[1]
+              + (r2 - ux2 - uy2 + uz2) * t[2];
+    
+    let w_out = t[3] * norm;
+    
     f32x4::from_array([
         rot_x + vx + r_rot * vx - ux * pw,
         rot_y + vy + r_rot * vy - uy * pw,
@@ -123,10 +142,17 @@ pub fn motor_chain(chain: &[Motor]) -> Motor {
         let p1 = rm[3]; let p2 = mm[3];
         // Full dual-quaternion translation: geometric coupling including pseudoscalar tracking
         let p_out = p1 + p2 + r1 * p2 - r2 * p1;
+        // Cross products: u1 × v2 and v1 × u2 (both required for dual-quaternion multiplication)
+        let u1_cross_v2_x = u1y * v2z - u1z * v2y;
+        let u1_cross_v2_y = u1z * v2x - u1x * v2z;
+        let u1_cross_v2_z = u1x * v2y - u1y * v2x;
+        let v1_cross_u2_x = v1y * u2z - v1z * u2y;
+        let v1_cross_u2_y = v1z * u2x - v1x * u2z;
+        let v1_cross_u2_z = v1x * u2y - v1y * u2x;
         r_mom = [
-            r1 * v2x + v1x * r2 + u1y * v2z - u1z * v2y,
-            r1 * v2y + v1y * r2 + u1z * v2x - u1x * v2z,
-            r1 * v2z + v1z * r2 + u1x * v2y - u1y * v2x,
+            r1 * v2x + v1x * r2 + u1_cross_v2_x + v1_cross_u2_x,
+            r1 * v2y + v1y * r2 + u1_cross_v2_y + v1_cross_u2_y,
+            r1 * v2z + v1z * r2 + u1_cross_v2_z + v1_cross_u2_z,
             p_out,
         ];
     }
