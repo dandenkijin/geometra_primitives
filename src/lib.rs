@@ -223,10 +223,21 @@ pub fn scalar(p: Plane) -> f32 {
 // Rotor primitive: grade-2 pure rotation element (even subalgebra without translation)
 pub fn rotor(dir_u: f32x4, angle: f32) -> Motor {
     let d = dir_u.to_array();
+    // Axis components are in d[1], d[2], d[3] (d[0] is typically 0 for direction vectors)
+    let axis_x = d[1];
+    let axis_y = d[2];
+    let axis_z = d[3];
+    
+    // Normalize axis: branchless normalization with epsilon guard
+    let norm_sq = axis_x * axis_x + axis_y * axis_y + axis_z * axis_z;
+    let norm = norm_sq.sqrt();
+    let eps = 1e-8;
+    let scale = if norm > eps { angle.sin() / norm } else { 0.0 };
+    
     let r_new = angle.cos();
-    let ux_new = d[1] * angle.sin();
-    let uy_new = d[2] * angle.sin();
-    let uz_new = d[3] * angle.sin();
+    let ux_new = axis_x * scale;
+    let uy_new = axis_y * scale;
+    let uz_new = axis_z * scale;
     // Pure rotation motor (no translation component)
     Motor { dir: f32x4::from_array([r_new, ux_new, uy_new, uz_new]), mom: f32x4::from_array([0.0, 0.0, 0.0, 0.0]) }
 }
