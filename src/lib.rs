@@ -283,13 +283,47 @@ pub fn right_contract(a: Plane, b: Plane) -> f32 {
 pub use parser::emit::*;
 
 pub fn exp(m: &Motor) -> Motor {
-    // Approximate multivector exponential: Taylor series first terms; singularity handled by metric
-    let d = m.dir.to_array();
-    let mo = m.mom.to_array();
-    // First-order approximation for demonstration: identity rotation + scaled translation
+    // Exact dual-quaternion exponential: exp(M) = exp(q) + ε * exp(q) * q'
+    // where M = q + ε*q', q = (r, ux, uy, uz), q' = (p, vx, vy, vz)
+    let d = m.dir.to_array();   // [r, ux, uy, uz]
+    let mo = m.mom.to_array();  // [vx, vy, vz, p]
+    
+    let r = d[0];
+    let ux = d[1];
+    let uy = d[2];
+    let uz = d[3];
+    let vx = mo[0];
+    let vy = mo[1];
+    let vz = mo[2];
+    let p = mo[3];
+    
+    // exp(q) where q = (r, ux, uy, uz)
+    let u_norm_sq = ux*ux + uy*uy + uz*uz;
+    let u_norm = u_norm_sq.sqrt();
+    let exp_r = r.exp();
+    
+    let (exp_q_r, exp_q_ux, exp_q_uy, exp_q_uz) = if u_norm > 1e-8 {
+        let cos_u = u_norm.cos();
+        let sin_u_over_u = u_norm.sin() / u_norm;
+        (exp_r * cos_u,
+         exp_r * sin_u_over_u * ux,
+         exp_r * sin_u_over_u * uy,
+         exp_r * sin_u_over_u * uz)
+    } else {
+        (exp_r, 0.0, 0.0, 0.0)
+    };
+    
+    // exp(q) * q' where q' = (p, vx, vy, vz) as quaternion
+    // quaternion multiplication: (a,b,c,d) * (e,f,g,h) = 
+    // (ae - bf - cg - dh, af + be + ch - dg, ag - bh + ce + df, ah + bg - cf + de)
+    let dual_r = exp_q_r * p - exp_q_ux * vx - exp_q_uy * vy - exp_q_uz * vz;
+    let dual_ux = exp_q_r * vx + exp_q_ux * p + exp_q_uy * vz - exp_q_uz * vy;
+    let dual_uy = exp_q_r * vy - exp_q_ux * vz + exp_q_uy * p + exp_q_uz * vx;
+    let dual_uz = exp_q_r * vz + exp_q_ux * vy - exp_q_uy * vx + exp_q_uz * p;
+    
     Motor {
-        dir: f32x4::from_array([1.0_f32 + d[0], d[1], d[2], d[3]]),
-        mom: f32x4::from_array([mo[0], mo[1], mo[2], mo[3]]),
+        dir: f32x4::from_array([exp_q_r, exp_q_ux, exp_q_uy, exp_q_uz]),
+        mom: f32x4::from_array([dual_ux, dual_uy, dual_uz, dual_r]),
     }
 }
 
