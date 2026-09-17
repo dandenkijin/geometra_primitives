@@ -175,9 +175,13 @@ pub fn sphere_intersect_sphere(c1: Point, r1: f32, c2: Point, r2: f32) -> f32 {
     let dz = a[2] - b[2];
     let dw = a[3] - b[3];
     let dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;
-    let sum_r_sq = (r1 + r2) * (r1 + r2);
-    let diff_r_sq = r1 * r2;
-    sum_r_sq - dist_sq + diff_r_sq
+    let sum_r = r1 + r2;
+    let diff_r = r1 - r2;
+    let sum_r_sq = sum_r * sum_r;
+    let diff_r_sq = diff_r * diff_r;
+    // Branchless product form: ((r1+r2)² - d²) * (d² - (r1-r2)²)
+    // > 0 when intersecting surfaces, = 0 at tangency, < 0 when separated or one fully inside
+    (sum_r_sq - dist_sq) * (dist_sq - diff_r_sq)
 }
 
 // Involution primitives: reversion (reverse), conjugate, automorphism
