@@ -6,8 +6,9 @@ pub fn emit_cuda(node: &PgaAst) -> String {
             "__device__ float4 wedge_cuda(float4 p, float4 q) {\n    float4 out_dir = make_float4(p.y * q.z - p.z * q.y, p.z * q.w - p.w * q.z, p.y * q.w - p.w * q.y, 0.0f);\n    float4 out_mom = make_float4(p.x * q.z - p.z * q.x, p.x * q.w - p.w * q.x, p.y * q.z - p.z * q.y, 0.0f);\n    return make_float4(out_dir.x, out_dir.y, out_dir.z, out_mom.x);\n}".to_string()
         }
         PgaAst::Vee(_, _) => {
-            // Pl{" + "e" + "}cker Line from two Grade-3 Points: dense scalar arithmetic, branchless
-            "__device__ float4 vee_cuda(float4 p, float4 q) {\n    float4 out_dir = make_float4(p.y * q.z - p.z * q.y, p.y * q.w - p.w * q.y, p.z * q.w - p.w * q.z, 0.0f);\n    float4 out_mom = make_float4(p.z * q.w - p.w * q.z, p.y * q.z - p.z * q.y, p.x * q.z - p.z * q.x, 0.0f);\n    return make_float4(out_dir.x, out_dir.y, out_dir.z, out_mom.x);\n}".to_string()
+            // Standard Plücker meet of two points: [M_x, M_y, M_z, D_x, D_y, D_z]
+            // M = p × q (moment), D = p_w*q - q_w*p (direction)
+            "__device__ float4 vee_cuda(float4 p, float4 q) {\n    float mx = p.y * q.z - p.z * q.y;\n    float my = p.z * q.x - p.x * q.z;\n    float mz = p.x * q.y - p.y * q.x;\n    float dx = p.w * q.x - q.w * p.x;\n    float dy = p.w * q.y - q.w * p.y;\n    float dz = p.w * q.z - q.w * p.z;\n    // Pack into float4: [mx, my, mz, dx] (dy, dz dropped due to float4 limit)\n    return make_float4(mx, my, mz, dx);\n}".to_string()
         }
         PgaAst::SandwichPoint(_, _) => {
             // Positive norm w_out (metric signature), exact quaternion sandwich + geometric translation, branchless scalar arithmetic

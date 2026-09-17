@@ -47,17 +47,18 @@ pub fn wedge(p: Plane, q: Plane) -> [f32; 6] {
     ]
 }
 
-pub fn vee(p: Plane, q: Plane) -> [f32; 6] {
+pub fn vee(p: Point, q: Point) -> [f32; 6] {
     let pa = p.to_array();
     let qa = q.to_array();
-    [
-        pa[1] * qa[3] - pa[2] * qa[2],
-        pa[0] * qa[3] - pa[3] * qa[2],
-        pa[0] * qa[1] - pa[2] * qa[1],
-        pa[2] * qa[3] - pa[3] * qa[0],
-        pa[1] * qa[2] - pa[3] * qa[0],
-        pa[0] * qa[2] - pa[1] * qa[0],
-    ]
+    // Standard Plücker meet of two points: [M_x, M_y, M_z, D_x, D_y, D_z]
+    // M = p × q (moment), D = p_w*q - q_w*p (direction)
+    let mx = pa[1] * qa[2] - pa[2] * qa[1];
+    let my = pa[2] * qa[0] - pa[0] * qa[2];
+    let mz = pa[0] * qa[1] - pa[1] * qa[0];
+    let dx = pa[3] * qa[0] - qa[3] * pa[0];
+    let dy = pa[3] * qa[1] - qa[3] * pa[1];
+    let dz = pa[3] * qa[2] - qa[3] * pa[2];
+    [mx, my, mz, dx, dy, dz]
 }
 
 pub fn geometric_product(p: Plane, pt: Point) -> f32 {

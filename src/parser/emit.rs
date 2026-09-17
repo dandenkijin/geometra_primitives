@@ -7,9 +7,9 @@ pub fn emit_wgsl(node: &PgaAst) -> String {
         }
         PgaAst::Vee(_, _) => {
             // Exact regressive (meet) mapping: two Grade-3 Points (homogeneous: [x, y, z, w]) -> Plücker Line (Grade 2, 6 components)
-            // Plücker coordinates from points p, q: [p.y*q.z - p.z*q.y, p.z*q.w - p.w*q.z, p.y*q.w - p.w*q.y, p.z*q.w - p.w*q.z, p.y*q.z - p.z*q.y, p.x*q.z - p.z*q.x]
-            // Component order: [L01, L02, L03, L23, L13, L12] matching geometric contract for Line (dir + mom split).
-            "fn vee(p: vec4<f32>, q: vec4<f32>) -> Line {\n    var out: Line;\n    out.dir = vec4<f32>(p.y * q.z - p.z * q.y, p.y * q.w - p.w * q.y, p.z * q.w - p.w * q.z, 0.0);\n    out.mom = vec4<f32>(p.z * q.w - p.w * q.z, p.y * q.z - p.z * q.y, p.x * q.z - p.z * q.x, 0.0);\n    return out;\n}".to_string()
+            // Standard Plücker: [M_x, M_y, M_z, D_x, D_y, D_z] where M = p × q, D = p_w*q - q_w*p
+            // Mapped to Line { dir: [M_x, M_y, M_z, D_x], mom: [D_y, D_z, 0, 0] }
+            "fn vee(p: vec4<f32>, q: vec4<f32>) -> Line {\n    var out: Line;\n    let mx = p.y * q.z - p.z * q.y;\n    let my = p.z * q.x - p.x * q.z;\n    let mz = p.x * q.y - p.y * q.x;\n    let dx = p.w * q.x - q.w * p.x;\n    let dy = p.w * q.y - q.w * p.y;\n    let dz = p.w * q.z - q.w * p.z;\n    out.dir = vec4<f32>(mx, my, mz, dx);\n    out.mom = vec4<f32>(dy, dz, 0.0, 0.0);\n    return out;\n}".to_string()
         }
         PgaAst::SandwichPoint(_, _) => {
             "fn sandwich_point(m: Motor, target: vec4<f32>) -> vec4<f32> {\n    let t = target;\n    let d = m.dir;\n    let mo = m.mom;\n    let r_rot = d.x; let ux = d.y; let uy = d.z; let uz = d.w;\n    let vx = mo.x; let vy = mo.y; let vz = mo.z; let pw = mo.w;\n    // Exact quaternion sandwich: v' = q * v * q⁻¹\n    let r2 = r_rot * r_rot;\n    let ux2 = ux * ux;\n    let uy2 = uy * uy;\n    let uz2 = uz * uz;\n    let norm = r2 + ux2 + uy2 + uz2;\n    let rot_x = (r2 + ux2 - uy2 - uz2) * t.x\n              + 2.0 * (ux * uy - r_rot * uz) * t.y\n              + 2.0 * (ux * uz + r_rot * uy) * t.z;\n    let rot_y = 2.0 * (ux * uy + r_rot * uz) * t.x\n              + (r2 - ux2 + uy2 - uz2) * t.y\n              + 2.0 * (uy * uz - r_rot * ux) * t.z;\n    let rot_z = 2.0 * (ux * uz - r_rot * uy) * t.x\n              + 2.0 * (uy * uz + r_rot * ux) * t.y\n              + (r2 - ux2 - uy2 + uz2) * t.z;\n    let w_out = t.w * norm;\n    return vec4<f32>(rot_x + vx + r_rot * vx - ux * pw, rot_y + vy + r_rot * vy - uy * pw, rot_z + vz + r_rot * vz - uz * pw, w_out);\n}".to_string()
