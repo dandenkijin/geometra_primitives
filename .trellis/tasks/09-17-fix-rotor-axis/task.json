@@ -3,7 +3,7 @@
   "name": "fix-rotor-axis",
   "title": "Fix rotor - normalize axis and use all components",
   "description": "Fix rotor() to normalize input axis vector and use all components correctly; currently ignores x-component and doesn't normalize",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,16 +11,18 @@
   "creator": "denkijin",
   "assignee": "denkijin",
   "createdAt": "2026-09-17",
-  "completedAt": null,
+  "completedAt": "2026-09-17",
   "branch": "main",
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "91ef12a",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
-  "relatedFiles": [],
-  "notes": "",
+  "relatedFiles": [
+    "src/lib.rs"
+  ],
+  "notes": "Implemented axis normalization in rotor() (src/lib.rs:229-247) with branchless epsilon guard. Uses d[1], d[2], d[3] as axis components with normalization. Library compiles and passes type-check.",
   "meta": {}
 }

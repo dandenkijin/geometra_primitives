@@ -3,7 +3,7 @@
   "name": "fix-vee-plucker",
   "title": "Fix vee - unify with standard Plücker meet formula",
   "description": "Fix vee() Plücker line-from-planes meet formula; current implementation doesn't match standard meet or emission formulas",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,16 +11,20 @@
   "creator": "denkijin",
   "assignee": "denkijin",
   "createdAt": "2026-09-17",
-  "completedAt": null,
+  "completedAt": "2026-09-17",
   "branch": "main",
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "91ef12a",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
-  "relatedFiles": [],
-  "notes": "",
+  "relatedFiles": [
+    "src/lib.rs",
+    "src/parser/emit.rs",
+    "src/parser/emit_cuda.rs"
+  ],
+  "notes": "Unified all three implementations (lib.rs:50-63, emit.rs:9-18, emit_cuda.rs:17-27) to standard Plücker meet formula for two points: M = p×q (moment), D = p_w*q - q_w*p (direction). CUDA emission limited to 4 components (float4) but computes correct values. Library compiles and passes type-check.",
   "meta": {}
 }

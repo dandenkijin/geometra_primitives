@@ -3,7 +3,7 @@
   "name": "fix-sphere-intersect-sphere",
   "title": "Fix sphere_intersect_sphere - correct intersection metric",
   "description": "Fix sphere-sphere intersection metric: current formula sum_r_sq - dist_sq + diff_r_sq is wrong for tangent equal spheres (returns 1 instead of 0)",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,16 +11,18 @@
   "creator": "denkijin",
   "assignee": "denkijin",
   "createdAt": "2026-09-17",
-  "completedAt": null,
+  "completedAt": "2026-09-17",
   "branch": "main",
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "91ef12a",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
-  "relatedFiles": [],
-  "notes": "",
+  "relatedFiles": [
+    "src/lib.rs"
+  ],
+  "notes": "Implemented correct branchless product-form metric in sphere_intersect_sphere() (src/lib.rs:171-183): ((r1+r2)² - d²) * (d² - (r1-r2)²). Gives 0 at tangency, >0 when intersecting, <0 when separated or one fully inside. Library compiles. Emission updates require parser signature changes (out of scope).",
   "meta": {}
 }
