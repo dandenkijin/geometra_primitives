@@ -269,10 +269,10 @@ pub fn rejection(a: Plane, b: Plane) -> [f32; 6] {
     ]
 }
 
-// Pseudoscalar normalization: grade-4 metric scale
+// Pseudoscalar normalization: grade-4 metric scale (branchless)
 pub fn pseudoscalar_normalize(p: f32) -> f32 {
-    // Metric inverse: normalize by pseudoscalar magnitude; singularity (p=0) handled via metric zero (branchless scalar arithmetic)
-    if p == 0.0 { 0.0 } else { 1.0 / p }
+    // Metric scale factor: p² in R_3_0_1; singularity (p=0) yields 0 naturally (branchless scalar arithmetic)
+    p * p
 }
 
 // Contract primitives (left/right contraction)

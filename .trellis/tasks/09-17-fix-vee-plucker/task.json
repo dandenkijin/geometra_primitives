@@ -18,7 +18,9 @@
   "commit": "91ef12a",
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "09-28-fix-pseudoscalar-normalize"
+  ],
   "parent": null,
   "relatedFiles": [
     "src/lib.rs",
