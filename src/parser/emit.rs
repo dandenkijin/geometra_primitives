@@ -66,9 +66,13 @@ pub fn emit_wgsl(node: &PgaAst) -> String {
             // Sphere-Plane Intersect: geometric intersection evaluation (branchless scalar arithmetic, metric-based singularity drop)
             "fn sphere_intersect_plane(sphere: Point, plane: Plane) -> f32 {\n    return sphere.x * plane.x + sphere.y * plane.y + sphere.z * plane.z + sphere.w * plane.w;\n}".to_string()
         }
-        PgaAst::SphereIntersectSphere(_, _, _) => {
+        PgaAst::SphereIntersectSphere(_, _, _, _) => {
             // Sphere-Sphere Intersect: distance metric evaluation (dense scalar arithmetic, singularity handled naturally by metric zero)
-            "fn sphere_intersect_sphere(s1: Point, s2: Point) -> f32 {\n    var dx = s1.x - s2.x; var dy = s1.y - s2.y; var dz = s1.z - s2.z; var dw = s1.w - s2.w;\n    return dx * dx + dy * dy + dz * dz + dw * dw;\n}".to_string()
+            "fn sphere_intersect_sphere(c1: Point, r1: f32, c2: Point, r2: f32) -> f32 {\n    var dx = c1.x - c2.x; var dy = c1.y - c2.y; var dz = c1.z - c2.z; var dw = c1.w - c2.w;\n    var dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;\n    var r_sum = r1 + r2;\n    var r_diff = r1 - r2;\n    return dist_sq - r_sum * r_sum;\n}".to_string()
+        }
+        PgaAst::Line(_) => {
+            // Line literal emission: construct Plücker line from 6 components
+            "fn line_from_components(comp: [f32; 6]) -> Line {\n    return Line(comp);\n}".to_string()
         }
     }
 }

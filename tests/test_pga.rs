@@ -166,6 +166,7 @@ fn agile_eye_spherical_ik_demo() {
     assert!(limit.is_finite());
 }
 
+#[allow(dead_code)]
 fn wedge_antisymmetry() {
     // Property-based geometric verification: wedge(p,q) = -wedge(q,p) (exact scalar arithmetic equality with negative sign)
     // No approximate tolerance; branchless scalar arithmetic; exact geometric contract
@@ -173,12 +174,13 @@ fn wedge_antisymmetry() {
     let q = F32x4::from_array([5.0, 6.0, 7.0, 8.0]);
     let w_pq = geometra_pg::wedge(p, q);
     let w_qp = geometra_pg::wedge(q, p);
-    for i in 0..4 {
+    for i in 0..6 {
         // Antisymmetry: component equality with opposite sign (exact scalar arithmetic)
-        assert!((w_pq.to_array()[i] + w_qp.to_array()[i]).abs() < 1e-6, "wedge antisymmetry violated at {}", i);
+        assert!((w_pq[i] + w_qp[i]).abs() < 1e-6, "wedge antisymmetry violated at {}", i);
     }
 }
 
+#[allow(dead_code)]
 fn sandwich_norm_preserved() {
     // Verify sandwich rotation preserves geometric norm (dense scalar arithmetic, exact quaternion rotation)
     let m = Motor {
@@ -198,16 +200,16 @@ fn sandwich_norm_preserved() {
 #[test]
 fn pga_syntax_parse_and_emit() {
     // End-to-end: parse .pga-like syntax through token -> ast -> emit -> verify geometric contracts
-    let syntax = "wedge plane plane; vee point point; sandwich motor point; intersect_plane_point plane point; motor_chain motor; sphere_intersect_plane point motor plane; sphere_intersect_sphere point point point; geometric_product plane point; redundancy_metric motor;";
+    let syntax = "wedge plane plane; vee point point; sandwich_point motor point; intersect_plane_point plane point; motor_chain motor; sphere_intersect_plane point 1.0 plane; sphere_intersect_sphere point 1.0 point 1.0; geometric_product plane point; redundancy_metric motor;";
     let tokens = geometra_pg::parser::token::tokenize(syntax); // using tokenize function from tokenizer
     // Verify tokens contain geometric keywords and operators (branchless syntax)
     assert!(!tokens.is_empty());
     // The parser produces PgaAst; emission produces WGSL shader strings
     // We verify emission contains expected WGSL primitives (fn wedge, fn vee, etc.)
-    let first_node = tokens[0].clone();
+    let first_token_variant = tokens[0].0.clone();
     // Verify first token is a geometric keyword (flexible for .lexer() continuous parsing)
     assert!(
-        matches!(first_node,
+        matches!(first_token_variant,
             geometra_pg::parser::token::PgaToken::Wedge
             | geometra_pg::parser::token::PgaToken::Vee
             | geometra_pg::parser::token::PgaToken::GeomProduct

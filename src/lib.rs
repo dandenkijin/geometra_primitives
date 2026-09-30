@@ -13,6 +13,7 @@ pub type Point = f32x4;  // Grade 3: x,y,z,w (Odd)
 pub mod parser;
 pub mod database;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Line {
     pub dir: f32x4,  // [u_x, u_y, u_z, v_x]
     pub mom: f32x4,  // [v_y, v_z, u_x, u_y]

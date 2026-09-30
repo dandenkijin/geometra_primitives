@@ -27,6 +27,7 @@ pub enum PgaToken {
     SphereIntersectPlane, SphereIntersectSphere,
     // Additional primitive keywords
     Mul, Inverse,
+    Projection, Rejection, Pseudoscalar,
     // Structural punctuation
     Comma, LParen, RParen, Arrow, Eq, Assign, SemiColon,
     // Terminator
@@ -50,7 +51,7 @@ pub fn tokenize(input: &str) -> Vec<(PgaToken, usize, usize)> {
         let mut word_start_col = 1;
         
         while let Some(ch) = chars.next() {
-            let is_punct = matches!(ch, ';' | ',' | '(' | ')' | '=' | '^' | 'v' | '*' | '>' | '<');
+            let is_punct = matches!(ch, ';' | ',' | '(' | ')' | '=' | '*' | '>' | '<');
             let is_arrow_start = ch == '=' && chars.peek() == Some(&'>');
             let is_whitespace = ch.is_whitespace();
             
@@ -77,8 +78,6 @@ pub fn tokenize(input: &str) -> Vec<(PgaToken, usize, usize)> {
                     '(' => PgaToken::LParen,
                     ')' => PgaToken::RParen,
                     '=' => PgaToken::Eq,
-                    '^' => PgaToken::Wedge,
-                    'v' => PgaToken::Vee,
                     '*' => PgaToken::GeomProduct,
                     _ => continue,
                 };
@@ -112,7 +111,7 @@ pub fn tokenize(input: &str) -> Vec<(PgaToken, usize, usize)> {
 }
 
 fn push_token(tokens: &mut Vec<(PgaToken, usize, usize)>, word: String, line_no: usize, col_no: usize) {
-    let token = match word.as_str() {
+    let token = match word.to_lowercase().as_str() {
         "wedge" => PgaToken::Wedge,
         "vee" => PgaToken::Vee,
         "geometric_product" => PgaToken::GeomProduct,
@@ -125,10 +124,13 @@ fn push_token(tokens: &mut Vec<(PgaToken, usize, usize)>, word: String, line_no:
         "redundancy_metric" => PgaToken::RedundancyMetric,
         "sphere_intersect_plane" => PgaToken::SphereIntersectPlane,
         "sphere_intersect_sphere" => PgaToken::SphereIntersectSphere,
-        "Plane" => PgaToken::Plane,
-        "Point" => PgaToken::Point,
-        "Motor" => PgaToken::Motor,
-        "Line" => PgaToken::Line,
+        "projection" => PgaToken::Projection,
+        "rejection" => PgaToken::Rejection,
+        "pseudoscalar" => PgaToken::Pseudoscalar,
+        "plane" => PgaToken::Plane,
+        "point" => PgaToken::Point,
+        "motor" => PgaToken::Motor,
+        "line" => PgaToken::Line,
         "let" => PgaToken::Let,
         "mul" => PgaToken::Mul,
         "inverse" => PgaToken::Inverse,

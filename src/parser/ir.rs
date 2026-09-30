@@ -3,6 +3,102 @@
 
 use crate::parser::type_def::GradeMask;
 use crate::parser::ast::PgaAst;
+use crate::parser::symbol_table::{SymbolTable, OperandTracker};
+
+// Grade enum for validation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Grade {
+    Scalar,       // 0
+    Vector,       // 1 (Plane)
+    Bivector,     // 2 (Line)
+    Trivector,    // 3 (Point)
+    Pseudoscalar, // 4
+    Motor,        // Even mixed grade
+}
+
+impl Grade {
+    pub fn from_ast_variant(variant: &str) -> Option<Grade> {
+        match variant {
+            "Wedge" => Some(Grade::Bivector),           // output grade
+            "Vee" => Some(Grade::Vector),               // output grade
+            "SandwichPoint" => Some(Grade::Trivector),  // output grade
+            "SandwichPlane" => Some(Grade::Vector),     // output grade
+            "IntersectPlanePoint" => Some(Grade::Scalar),
+            "PointLineIntersect" => Some(Grade::Scalar),
+            "Chain" | "MotorChain" => Some(Grade::Motor),
+            "Rotor" => Some(Grade::Motor),
+            "GeomProduct" => Some(Grade::Scalar),
+            "RedundancyMetric" => Some(Grade::Scalar),
+            "SphereIntersectPlane" => Some(Grade::Scalar),
+            "SphereIntersectSphere" => Some(Grade::Scalar),
+            "Projection" => Some(Grade::Scalar),
+            "Rejection" => Some(Grade::Bivector),
+            "Pseudoscalar" => Some(Grade::Pseudoscalar),
+            "Line" => Some(Grade::Bivector),
+            _ => None,
+        }
+    }
+}
+
+// Operand value types matching AST operands
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperandValue {
+    Plane(crate::Plane),
+    Point(crate::Point),
+    Line(crate::Line),
+    Motor(crate::Motor),
+    Scalar(f32),
+}
+
+impl OperandValue {
+    pub fn grade(&self) -> Grade {
+        match self {
+            OperandValue::Plane(_) => Grade::Vector,
+            OperandValue::Point(_) => Grade::Trivector,
+            OperandValue::Line(_) => Grade::Bivector,
+            OperandValue::Motor(_) => Grade::Motor,
+            OperandValue::Scalar(_) => Grade::Scalar,
+        }
+    }
+}
+
+// Operand slot in the context
+#[derive(Debug, Clone, PartialEq)]
+pub struct OperandSlot {
+    pub grade: Grade,
+    pub value: Option<OperandValue>,
+}
+
+// Operand context for grade-aware lowering
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct OperandContext {
+    pub slots: Vec<OperandSlot>,
+}
+
+impl OperandContext {
+    pub fn new() -> Self {
+        Self { slots: Vec::new() }
+    }
+
+    pub fn add(&mut self, value: OperandValue) -> usize {
+        let slot = OperandSlot {
+            grade: value.grade(),
+            value: Some(value),
+        };
+        self.slots.push(slot);
+        self.slots.len() - 1
+    }
+
+    pub fn add_placeholder(&mut self, grade: Grade) -> usize {
+        let slot = OperandSlot { grade, value: None };
+        self.slots.push(slot);
+        self.slots.len() - 1
+    }
+
+    pub fn get_grade(&self, idx: usize) -> Option<Grade> {
+        self.slots.get(idx).map(|s| s.grade)
+    }
+}
 
 // Op: dense scalar label execution pipeline (grade-agnostic flat layout; no String allocations)
 #[derive(Debug, PartialEq, Clone)]
@@ -15,157 +111,189 @@ pub enum Op {
     ChainMotors { out_idx: usize, motors: Vec<usize> },
 }
 
-pub fn lower_ast_to_ir(node: &PgaAst) -> Vec<Op> {
-    let mut ops = Vec::new();
-    // Pipeline mapping: PgaAst operand structures -> dense scalar label indices (grade-derived).
-    // Indices derived from operand grades/types via dense scalar arithmetic (branchless scalar mapping).
-    // Contract: dense scalar arithmetic only; branchless scalar FMA preserved; zero String allocations;
-    // multi-backend independent; .Logos reference preserved; geometric contracts untouched (independent layer).
-    use crate::parser::type_def::GradeMask; // Dense scalar grade mask (branchless arithmetic reference).
+pub fn build_operand_context(ast: &PgaAst, sym_table: &SymbolTable, op_tracker: &OperandTracker) -> OperandContext {
+    let mut ctx = OperandContext::new();
 
-    // Helper: derive dense scalar index from grade type (dense scalar arithmetic — scalar mapping only).
-    fn grade_index(mask_name: &str, base: usize) -> usize {
-        // Dense scalar arithmetic: base offset + scalar mapping (exact arithmetic preserved).
-        // Mask mapping: scalar=0 offset, plane=1, line=2, point=3, pseudoscalar=4, motor=5 (dense scalar mapping).
-        match mask_name {
-            "scalar" => base + 0,
-            "plane" => base + 1,
-            "line" => base + 2,
-            "point" => base + 3,
-            "pseudoscalar" => base + 4,
-            "motor" => base + 5,
-            _ => base + 0, // Default scalar mapping (dense scalar arithmetic preserved).
+    // Helper to add operand from AST, using symbol table/op tracker if available
+    fn add_operand(ctx: &mut OperandContext, value: OperandValue) -> usize {
+        ctx.add(value)
+    }
+
+    match ast {
+        PgaAst::Wedge(p, q) => {
+            add_operand(&mut ctx, OperandValue::Plane(*p));
+            add_operand(&mut ctx, OperandValue::Plane(*q));
+        }
+        PgaAst::Vee(p, q) => {
+            add_operand(&mut ctx, OperandValue::Point(*p));
+            add_operand(&mut ctx, OperandValue::Point(*q));
+        }
+        PgaAst::SandwichPoint(m, pt) => {
+            add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+            add_operand(&mut ctx, OperandValue::Point(*pt));
+        }
+        PgaAst::SandwichPlane(m, pl) => {
+            add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+            add_operand(&mut ctx, OperandValue::Plane(*pl));
+        }
+        PgaAst::IntersectPlanePoint(p, pt) => {
+            add_operand(&mut ctx, OperandValue::Plane(*p));
+            add_operand(&mut ctx, OperandValue::Point(*pt));
+        }
+        PgaAst::Chain(motors) => {
+            for m in motors {
+                add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+            }
+        }
+        PgaAst::Rotor(m) => {
+            add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+        }
+        PgaAst::GeomProduct(p, pt) => {
+            add_operand(&mut ctx, OperandValue::Plane(*p));
+            add_operand(&mut ctx, OperandValue::Point(*pt));
+        }
+        PgaAst::PointLineIntersect(pt, ln) => {
+            add_operand(&mut ctx, OperandValue::Point(*pt));
+            add_operand(&mut ctx, OperandValue::Line(ln.clone()));
+        }
+        PgaAst::MotorChain(motors) => {
+            for m in motors {
+                add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+            }
+        }
+        PgaAst::RedundancyMetric(m) => {
+            add_operand(&mut ctx, OperandValue::Motor(m.clone()));
+        }
+        PgaAst::SphereIntersectPlane(center, radius, plane) => {
+            add_operand(&mut ctx, OperandValue::Point(*center));
+            add_operand(&mut ctx, OperandValue::Scalar(*radius));
+            add_operand(&mut ctx, OperandValue::Plane(*plane));
+        }
+        PgaAst::SphereIntersectSphere(c1, r1, c2, r2) => {
+            add_operand(&mut ctx, OperandValue::Point(*c1));
+            add_operand(&mut ctx, OperandValue::Scalar(*r1));
+            add_operand(&mut ctx, OperandValue::Point(*c2));
+            add_operand(&mut ctx, OperandValue::Scalar(*r2));
+        }
+        PgaAst::Projection(a, b) => {
+            add_operand(&mut ctx, OperandValue::Plane(*a));
+            add_operand(&mut ctx, OperandValue::Plane(*b));
+        }
+        PgaAst::Rejection(a, b) => {
+            add_operand(&mut ctx, OperandValue::Plane(*a));
+            add_operand(&mut ctx, OperandValue::Plane(*b));
+        }
+        PgaAst::Pseudoscalar(p) => {
+            add_operand(&mut ctx, OperandValue::Scalar(*p));
+        }
+        PgaAst::Line(ln) => {
+            add_operand(&mut ctx, OperandValue::Line(*ln));
         }
     }
 
-    match node {
+    // Note: sym_table and op_tracker available for future identifier resolution
+    // Currently operands are concrete values from parse(); placeholders use None
+    let _ = (sym_table, op_tracker); // suppress unused warning
+    ctx
+}
+
+pub fn lower_ast_to_ir_with_context(ast: &PgaAst, ctx: &OperandContext) -> Vec<Op> {
+    let mut ops = Vec::new();
+
+    match ast {
         PgaAst::Wedge(_, _) => {
-            // Wedge (Grade 2 / Bivector): dense scalar mapping from grade-2 (line) operands.
-            // Contract: dense scalar arithmetic; branchless scalar mapping preserved.
-            ops.push(Op::WedgePlanes {
-                out_idx: grade_index("bivector", 2),
-                p_idx: grade_index("line", 2), // Grade 2 mapping (dense scalar arithmetic).
-                q_idx: grade_index("line", 2),
-            });
+            let p_idx = 0;
+            let q_idx = 1;
+            let out_idx = ctx.slots.len(); // new slot for result
+            ops.push(Op::WedgePlanes { out_idx, p_idx, q_idx });
         }
         PgaAst::Vee(_, _) => {
-            // Vee (Grade 1 Vector / Grade 3 Trivector): dense scalar mapping from grade-aligned operands.
-            ops.push(Op::VeePoints {
-                out_idx: grade_index("vector", 4),
-                p_idx: grade_index("trivector", 4),
-                q_idx: grade_index("vector", 4),
-            });
+            let p_idx = 0;
+            let q_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::VeePoints { out_idx, p_idx, q_idx });
         }
         PgaAst::SandwichPoint(_, _) => {
-            // SandwichPoint (Motor Even grade + Point grade 3): dense scalar mapping.
-            ops.push(Op::SandwichPt {
-                out_idx: grade_index("motor", 6),
-                m_idx: grade_index("motor", 6),
-                pt_idx: grade_index("point", 6),
-            });
+            let m_idx = 0;
+            let pt_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::SandwichPt { out_idx, m_idx, pt_idx });
         }
         PgaAst::SandwichPlane(_, _) => {
-            // SandwichPlane (Motor Even grade + Plane grade 1): dense scalar mapping.
-            ops.push(Op::SandwichPl {
-                out_idx: grade_index("motor", 9),
-                m_idx: grade_index("motor", 9),
-                pl_idx: grade_index("plane", 9),
-            });
+            let m_idx = 0;
+            let pl_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::SandwichPl { out_idx, m_idx, pl_idx });
         }
         PgaAst::IntersectPlanePoint(_, _) => {
-            // Intersect (Plane grade 1 + Point grade 3): dense scalar mapping.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("intersect", 12),
-                pl_idx: grade_index("plane", 12),
-                pt_idx: grade_index("point", 12),
-            });
+            let pl_idx = 0;
+            let pt_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx, pt_idx });
         }
-        PgaAst::Chain(_) => {
-            // Chain: dense scalar label sequence; unrolled scalar quaternion + geometric translation preserved.
-            // Contract: dense scalar mapping; branchless scalar arithmetic preserved; zero allocations (Vec only in pipeline).
-            ops.push(Op::ChainMotors {
-                out_idx: grade_index("motor", 15),
-                motors: (0..1).map(|i| grade_index("motor", 16) + i).collect(),
-            });
+        PgaAst::Chain(motors) => {
+            let motor_indices: Vec<usize> = (0..motors.len()).collect();
+            let out_idx = ctx.slots.len();
+            ops.push(Op::ChainMotors { out_idx, motors: motor_indices });
         }
         PgaAst::Rotor(_) => {
-            // Rotor (Grade 2 pure rotation): dense scalar mapping from grade-2.
-            ops.push(Op::WedgePlanes {
-                out_idx: grade_index("bivector", 17),
-                p_idx: grade_index("line", 17),
-                q_idx: grade_index("line", 17),
-            });
-        }
-        PgaAst::Projection(_, _) => {
-            // Projection (inner product — grade-aligned): dense scalar mapping.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("projection", 20),
-                pl_idx: grade_index("plane", 20),
-                pt_idx: grade_index("point", 20),
-            });
-        }
-        PgaAst::Rejection(_, _) => {
-            // Rejection (regressive cross-product — grade-aligned): dense scalar mapping.
-            ops.push(Op::VeePoints {
-                out_idx: grade_index("rejection", 23),
-                p_idx: grade_index("point", 23),
-                q_idx: grade_index("plane", 23),
-            });
-        }
-        PgaAst::Pseudoscalar(_) => {
-            // Pseudoscalar (Grade 4 metric / singularity tracking): dense scalar mapping.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("pseudoscalar", 26),
-                pl_idx: grade_index("scalar", 26),
-                pt_idx: grade_index("scalar", 26),
-            });
+            let m_idx = 0;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::SandwichPt { out_idx, m_idx, pt_idx: 1 }); // rotor as motor
         }
         PgaAst::GeomProduct(_, _) => {
-            // Geometric product (scalar FMA accumulation — dense scalar mapping): dense scalar arithmetic only.
-            ops.push(Op::WedgePlanes {
-                out_idx: grade_index("geom_product", 29),
-                p_idx: grade_index("scalar", 29),
-                q_idx: grade_index("scalar", 29),
-            });
+            let p_idx = 0;
+            let pt_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: p_idx, pt_idx });
         }
         PgaAst::PointLineIntersect(_, _) => {
-            // Point-Line Intersect (metric scalar evaluation): dense scalar mapping.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("intersect_point_line", 32),
-                pl_idx: grade_index("line", 32),
-                pt_idx: grade_index("point", 32),
-            });
+            let pt_idx = 0;
+            let ln_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: ln_idx, pt_idx });
         }
-        PgaAst::MotorChain(_) => {
-            // Motor chain: dense scalar label sequence (unrolled quaternion + geometric translation); branchless scalar arithmetic preserved.
-            ops.push(Op::ChainMotors {
-                out_idx: grade_index("motor_chain", 35),
-                motors: (0..1).map(|i| grade_index("motor", 36) + i).collect(),
-            });
+        PgaAst::MotorChain(motors) => {
+            let motor_indices: Vec<usize> = (0..motors.len()).collect();
+            let out_idx = ctx.slots.len();
+            ops.push(Op::ChainMotors { out_idx, motors: motor_indices });
         }
         PgaAst::RedundancyMetric(_) => {
-            // Redundancy metric (geometric redundancy — dense scalar mapping): dense scalar arithmetic only.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("redundancy", 37),
-                pl_idx: grade_index("bivector", 37),
-                pt_idx: grade_index("scalar", 37),
-            });
+            let m_idx = 0;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: m_idx, pt_idx: 1 }); // scalar output
         }
         PgaAst::SphereIntersectPlane(_, _, _) => {
-            // Sphere-Plane Intersect (geometric intersection — dense scalar mapping): dense scalar arithmetic; branchless scalar FMA preserved.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("sphere_intersect_plane", 40),
-                pl_idx: grade_index("sphere", 40),
-                pt_idx: grade_index("plane", 40),
-            });
+            let pt_idx = 0;
+            let pl_idx = 2;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx, pt_idx });
         }
-        PgaAst::SphereIntersectSphere(_, _, _) => {
-            // Sphere-Sphere Intersect (distance metric — dense scalar mapping): dense scalar arithmetic; exact arithmetic preserved.
-            ops.push(Op::Intersect {
-                out_idx: grade_index("sphere_intersect_sphere", 43),
-                pl_idx: grade_index("sphere", 43),
-                pt_idx: grade_index("sphere", 43),
-            });
+        PgaAst::SphereIntersectSphere(_, _, _, _) => {
+            let pt1_idx = 0;
+            let pt2_idx = 2;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: pt1_idx, pt_idx: pt2_idx });
+        }
+        PgaAst::Projection(_, _) => {
+            let a_idx = 0;
+            let b_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: a_idx, pt_idx: b_idx });
+        }
+        PgaAst::Rejection(_, _) => {
+            let a_idx = 0;
+            let b_idx = 1;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::VeePoints { out_idx, p_idx: a_idx, q_idx: b_idx });
+        }
+        PgaAst::Pseudoscalar(_) => {
+            let p_idx = 0;
+            let out_idx = ctx.slots.len();
+            ops.push(Op::Intersect { out_idx, pl_idx: p_idx, pt_idx: p_idx });
+        }
+        PgaAst::Line(_) => {
+            // Line literal produces no op, just defines operand
         }
     }
     ops
@@ -176,24 +304,34 @@ pub fn lower_ast_to_ir(node: &PgaAst) -> Vec<Op> {
 // branchless arithmetic preserved (no arithmetic branches — scalar mask checks); multi-backend independent
 // (independent layer — geometric contracts untouched; emission contracts untouched); .Logos preserved;
 // contracts preserved (branchless; dense arrays; std-lib; zero allocations; exact arithmetic).
-pub fn validate_op_grade(op: &Op) -> bool {
-    // Helper: grade mask check (dense scalar arithmetic — scalar mapping only; branchless arithmetic preserved).
-    fn mask_matches(op_type_hint: &str) -> bool {
-        // Dense scalar arithmetic: grade mapping based on operation type (no arithmetic branches).
-        // Contract: branchless scalar arithmetic preserved; dense scalar mapping; exact arithmetic.
-        true
+pub fn validate_op_grade(op: &Op, ctx: &OperandContext) -> bool {
+    match op {
+        Op::WedgePlanes { p_idx, q_idx, .. } => {
+            matches!(ctx.get_grade(*p_idx), Some(Grade::Vector)) &&
+            matches!(ctx.get_grade(*q_idx), Some(Grade::Vector))
+        }
+        Op::VeePoints { p_idx, q_idx, .. } => {
+            matches!(ctx.get_grade(*p_idx), Some(Grade::Trivector)) &&
+            matches!(ctx.get_grade(*q_idx), Some(Grade::Trivector))
+        }
+        Op::SandwichPt { m_idx, pt_idx, .. } => {
+            matches!(ctx.get_grade(*m_idx), Some(Grade::Motor)) &&
+            matches!(ctx.get_grade(*pt_idx), Some(Grade::Trivector))
+        }
+        Op::SandwichPl { m_idx, pl_idx, .. } => {
+            matches!(ctx.get_grade(*m_idx), Some(Grade::Motor)) &&
+            matches!(ctx.get_grade(*pl_idx), Some(Grade::Vector))
+        }
+        Op::Intersect { pl_idx, pt_idx, .. } => {
+            // Intersect can be Plane+Point (Vector+Trivector) or Line+Point (Bivector+Trivector)
+            let pl_ok = matches!(ctx.get_grade(*pl_idx), Some(Grade::Vector) | Some(Grade::Bivector));
+            let pt_ok = matches!(ctx.get_grade(*pt_idx), Some(Grade::Trivector));
+            pl_ok && pt_ok
+        }
+        Op::ChainMotors { motors, .. } => {
+            motors.iter().all(|&idx| matches!(ctx.get_grade(idx), Some(Grade::Motor)))
+        }
     }
-    // Validate each Op variant against expected grade contracts (dense scalar arithmetic only).
-    let grade_ok = match op {
-        Op::WedgePlanes { .. } => mask_matches("wedge"), // Grade 2 (Bivector) output from grade-2 operands.
-        Op::VeePoints { .. } => mask_matches("vee"), // Grade 1 (Vector) / Grade 3 (Trivector) output.
-        Op::SandwichPt { .. } => mask_matches("sandwich_point"), // Motor (Even) + Point (Grade 3) -> Point output.
-        Op::SandwichPl { .. } => mask_matches("sandwich_plane"), // Motor (Even) + Plane (Grade 1) -> Plane output.
-        Op::Intersect { .. } => mask_matches("intersect"), // Plane (Grade 1) + Point (Grade 3) -> scalar metric.
-        Op::ChainMotors { .. } => mask_matches("motor_chain"), // Vec<Motor> (Even grade) -> Motor output.
-    };
-    // Contract: branchless arithmetic preserved (scalar arithmetic only in grade check); dense scalar mapping preserved.
-    grade_ok
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -260,8 +398,6 @@ impl PgaMultivector {
 
 // Optimization passes: branchless, dense scalar FMA
 pub fn prune_zeros(ir: PgaMultivector) -> PgaMultivector {
-    // Element-wise zero: scan each array element individually via .map(); drop only scalar below threshold.
-    // No array block is discarded — adjacent elements preserved; branchless scalar arithmetic per coordinate.
     PgaMultivector {
         grade_mask: ir.grade_mask,
         scalar_coeff: ir.scalar_coeff.map(|c| if c.abs() > 1e-8 { c } else { 0.0 }),
@@ -312,31 +448,12 @@ pub fn prune_zeros(ir: PgaMultivector) -> PgaMultivector {
 }
 
 pub fn fold_constants(ir: PgaMultivector) -> PgaMultivector {
-    // Compile-time constant folding: evaluate each component with dense scalar arithmetic.
-    // Scalar: identity (no transformation at compile-time evaluation stage for pure coefficient pass).
-    // Vector/Bivector/Trivector/Motor: identity folded (geometric evaluation deferred to geometric_product/intersect passes).
-    // Branchless scalar arithmetic per element; zero heap allocations.
     PgaMultivector {
         grade_mask: ir.grade_mask,
-        scalar_coeff: ir.scalar_coeff.map(|c| c), // pure coefficient identity at this stage
-        vector_coeff: ir.vector_coeff.map(|v| {
-            [
-                v[0], // dense scalar arithmetic identity preserved
-                v[1],
-                v[2],
-                v[3],
-            ]
-        }),
-        bivector_coeff: ir.bivector_coeff.map(|b| {
-            [
-                b[0], b[1], b[2], b[3], b[4], b[5],
-            ]
-        }),
-        trivector_coeff: ir.trivector_coeff.map(|t| {
-            [
-                t[0], t[1], t[2], t[3],
-            ]
-        }),
+        scalar_coeff: ir.scalar_coeff.map(|c| c),
+        vector_coeff: ir.vector_coeff.map(|v| [v[0], v[1], v[2], v[3]]),
+        bivector_coeff: ir.bivector_coeff.map(|b| [b[0], b[1], b[2], b[3], b[4], b[5]]),
+        trivector_coeff: ir.trivector_coeff.map(|t| [t[0], t[1], t[2], t[3]]),
         pseudoscalar_coeff: ir.pseudoscalar_coeff.map(|p| p),
         motor_dir: ir.motor_dir.map(|d| [d[0], d[1], d[2], d[3]]),
         motor_mom: ir.motor_mom.map(|m| [m[0], m[1], m[2], m[3]]),
@@ -344,27 +461,14 @@ pub fn fold_constants(ir: PgaMultivector) -> PgaMultivector {
 }
 
 pub fn merge_terms(ir: PgaMultivector) -> PgaMultivector {
-    // Aggregate like-grade coefficients via flat dense scalar arithmetic (`a + 0.0` identity accumulation per component).
-    // Component-wise accumulation: scalar (`c + 0.0`), vector (`v[i] + 0.0`), bivector (`b[i] + 0.0`), etc.
-    // Zero heap allocations; branchless scalar arithmetic only.
     PgaMultivector {
         grade_mask: ir.grade_mask,
         scalar_coeff: ir.scalar_coeff.map(|c| c + 0.0),
-        vector_coeff: ir.vector_coeff.map(|v| [
-            v[0] + 0.0, v[1] + 0.0, v[2] + 0.0, v[3] + 0.0,
-        ]),
-        bivector_coeff: ir.bivector_coeff.map(|b| [
-            b[0] + 0.0, b[1] + 0.0, b[2] + 0.0, b[3] + 0.0, b[4] + 0.0, b[5] + 0.0,
-        ]),
-        trivector_coeff: ir.trivector_coeff.map(|t| [
-            t[0] + 0.0, t[1] + 0.0, t[2] + 0.0, t[3] + 0.0,
-        ]),
+        vector_coeff: ir.vector_coeff.map(|v| [v[0] + 0.0, v[1] + 0.0, v[2] + 0.0, v[3] + 0.0]),
+        bivector_coeff: ir.bivector_coeff.map(|b| [b[0] + 0.0, b[1] + 0.0, b[2] + 0.0, b[3] + 0.0, b[4] + 0.0, b[5] + 0.0]),
+        trivector_coeff: ir.trivector_coeff.map(|t| [t[0] + 0.0, t[1] + 0.0, t[2] + 0.0, t[3] + 0.0]),
         pseudoscalar_coeff: ir.pseudoscalar_coeff.map(|p| p + 0.0),
-        motor_dir: ir.motor_dir.map(|d| [
-            d[0] + 0.0, d[1] + 0.0, d[2] + 0.0, d[3] + 0.0,
-        ]),
-        motor_mom: ir.motor_mom.map(|m| [
-            m[0] + 0.0, m[1] + 0.0, m[2] + 0.0, m[3] + 0.0,
-        ]),
+        motor_dir: ir.motor_dir.map(|d| [d[0] + 0.0, d[1] + 0.0, d[2] + 0.0, d[3] + 0.0]),
+        motor_mom: ir.motor_mom.map(|m| [m[0] + 0.0, m[1] + 0.0, m[2] + 0.0, m[3] + 0.0]),
     }
 }

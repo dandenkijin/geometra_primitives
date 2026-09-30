@@ -59,8 +59,11 @@ pub fn emit_cuda(node: &PgaAst) -> String {
         PgaAst::SphereIntersectPlane(_, _, _) => {
             "__device__ float sphere_intersect_plane_cuda(float4 sphere, float4 plane) {\n    return sphere.x * plane.x + sphere.y * plane.y + sphere.z * plane.z + sphere.w * plane.w;\n}".to_string()
         }
-        PgaAst::SphereIntersectSphere(_, _, _) => {
-            "__device__ float sphere_intersect_sphere_cuda(float4 s1, float4 s2) {\n    float dx = s1.x - s2.x; float dy = s1.y - s2.y; float dz = s1.z - s2.z; float dw = s1.w - s2.w;\n    return dx * dx + dy * dy + dz * dz + dw * dw;\n}".to_string()
+        PgaAst::SphereIntersectSphere(_, _, _, _) => {
+            "__device__ float sphere_intersect_sphere_cuda(float4 c1, float r1, float4 c2, float r2) {\n    float dx = c1.x - c2.x; float dy = c1.y - c2.y; float dz = c1.z - c2.z; float dw = c1.w - c2.w;\n    float dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;\n    float r_sum = r1 + r2;\n    float r_diff = r1 - r2;\n    return dist_sq - r_sum * r_sum;\n}".to_string()
+        }
+        PgaAst::Line(_) => {
+            "__device__ float4 line_from_components_cuda(float comp[6]) {\n    return make_float4(comp[0], comp[1], comp[2], comp[3]);\n}".to_string()
         }
     }
 }
